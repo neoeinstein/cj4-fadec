@@ -1,5 +1,6 @@
 use gauge_sys::ffi::{RawServiceId, ServiceId};
 
+mod pid;
 mod controller;
 mod gauges;
 

@@ -15,6 +15,7 @@ use uom::si::{
     mass_density::slug_per_cubic_foot,
     acceleration::foot_per_second_squared,
 };
+use super::pid::{PidConfiguration, PidState};
 
 // fn speed_of_sound(altitude: Alt) -> Velocity {
 //     let x = Altitude::new::<foot>(1.);
@@ -50,8 +51,8 @@ impl Thrust {
 }
 
 impl Altitude {
-    fn read_typed() -> avmath::PressureAltitude {
-        avmath::PressureAltitude::new::<foot>(Self::read())
+    fn read_typed() -> avmath::GeopotentialAltitude {
+        avmath::GeopotentialAltitude::new::<foot>(Self::read())
     }
 }
 
@@ -517,8 +518,8 @@ impl EngineNumber {
 
 #[derive(Debug)]
 pub struct FdController {
-    pid_config: PidConfiguration,
-    pid_state: [PidState; 2],
+    pid_config: PidConfiguration<Force>,
+    pid_state: [PidState<Force>; 2],
     throttle_axes: [ThrottleValue; 2],
     throttle_mode: [ThrottleMode; 2],
     enabled: bool,
@@ -527,7 +528,7 @@ pub struct FdController {
 impl FdController {
     pub fn new() -> Self {
         Self {
-            pid_config: PidConfiguration::default(),
+            pid_config: ClimbFadecPidConfiguration::default(),
             pid_state: [PidState::default(); 2],
             throttle_axes: [ThrottleValue::MIN; 2],
             throttle_mode: [ThrottleMode::Undefined; 2],
@@ -581,7 +582,7 @@ impl FdController {
 
                 println!("{:?}: Gross thrust: {}, Max density thrust: {}, altitude: {}", engine, gross_thrust.into_format_args(poundal, uom::fmt::DisplayStyle::Abbreviation), max_density_thrust.into_format_args(poundal, uom::fmt::DisplayStyle::Abbreviation), plane_altitude.remove_context().into_format_args(foot, uom::fmt::DisplayStyle::Abbreviation));
 
-                let low_altitude_limit = avmath::PressureAltitude::new::<foot>(7000.);
+                let low_altitude_limit = avmath::GeopotentialAltitude::new::<foot>(7000.);
                 let altitude_reduction: Length = low_altitude_limit - plane_altitude;
                 let low_altitude_thrust: Force =
                     (altitude_reduction * MassRate::new::<pound_per_second>(1.) / Time::new::<second>(24.))
@@ -589,7 +590,7 @@ impl FdController {
                 let low_thrust_target: Force = Force::new::<poundal>(2050.) + low_altitude_thrust;
 
                 let target_thrust: Force = if (max_density_thrust * THRUST_FACTOR) < low_thrust_target {
-                    let high_altitude_limit = avmath::PressureAltitude::new::<foot>(35000.);
+                    let high_altitude_limit = avmath::GeopotentialAltitude::new::<foot>(35000.);
                     let altitude_reduction: Length = plane_altitude - high_altitude_limit;
                     let high_altitude_thrust_reduction: Force =
                         (altitude_reduction * MassRate::new::<pound_per_second>(1.) / Time::new::<second>(64.))
@@ -601,13 +602,10 @@ impl FdController {
                     low_thrust_target
                 };
 
-                let error = target_thrust - gross_thrust;
+                let output = self.pid_state[engine.index()].tick(target_thrust, &self.pid_config, gross_thrust, delta_t);
 
-                let next_state = self.pid_state[engine.index()].tick(&self.pid_config, error, delta_t);
-                self.pid_state[engine.index()] = next_state;
-
-                let next_throttle = Throttle::read_index_typed(engine.sim_index()) + next_state.output;
-                println!("{:?}: Target thrust: {} (error: {}); adjusting throttle {} to {} of maximum", engine, target_thrust.into_format_args(poundal, uom::fmt::DisplayStyle::Abbreviation), error.into_format_args(poundal, uom::fmt::DisplayStyle::Abbreviation), next_state.output.into_format_args(ratio, uom::fmt::DisplayStyle::Abbreviation), next_throttle.into_format_args(ratio, uom::fmt::DisplayStyle::Abbreviation));
+                let next_throttle = Throttle::read_index_typed(engine.sim_index()) + output;
+                //println!("{:?}: Target thrust: {} (error: {}); adjusting throttle {} to {} of maximum", engine, target_thrust.into_format_args(poundal, uom::fmt::DisplayStyle::Abbreviation), error.into_format_args(poundal, uom::fmt::DisplayStyle::Abbreviation), next_state.output.into_format_args(ratio, uom::fmt::DisplayStyle::Abbreviation), next_throttle.into_format_args(ratio, uom::fmt::DisplayStyle::Abbreviation));
 
                 (ThrustValue::from_force(target_thrust), ThrottlePercent::from_ratio(next_throttle))
             }
@@ -649,98 +647,28 @@ impl FdController {
     }
 }
 
-pub fn convert_to_gross_thrust(thrust_in: Force, mach_in: f64) -> Force {
+fn convert_to_gross_thrust(thrust_in: Force, mach_in: f64) -> Force {
     thrust_in * (1. + (mach_in.powi(2) / 5.)).powf(3.5)
 }
 
-pub fn get_max_density_thrust(ambient_density: MassDensity) -> Force {
-    // Slugs per cubic ft
-    // 1 lbf = 1 slug * ft/s^2
-    // 0.0023982000 sl/ft^3 standard density MSL
+fn get_max_density_thrust(ambient_density: MassDensity) -> Force {
     let DENSITY_FACTOR = Volume::new::<cubic_foot>(1.) * Acceleration::new::<foot_per_second_squared>(1_351_600.);
     let f: Force = ambient_density * DENSITY_FACTOR;
     f + Force::new::<poundal>(250.)
 }
 
-#[derive(Clone, Copy, Debug, PartialEq)]
-pub struct PidConfiguration {
-    pub gain_proportion: <Ratio as std::ops::Div<Force>>::Output,
-    pub gain_integral: <Ratio as std::ops::Div<Momentum>>::Output,
-    pub gain_derivative: <Time as std::ops::Div<Force>>::Output,
-    pub min_output: Ratio,
-    pub max_output: Ratio,
-}
+struct ClimbFadecPidConfiguration;
 
-impl Default for PidConfiguration {
+impl ClimbFadecPidConfiguration {
     #[inline]
-    fn default() -> Self {
-        Self {
+    fn default() -> PidConfiguration<Force> {
+        PidConfiguration {
             gain_proportion: Ratio::new::<percent>(1.2) / Force::new::<poundal>(1_000.),
             gain_integral: Ratio::new::<percent>(0.0001) / Momentum::new::<pound_foot_per_second>(1.),
             gain_derivative: Time::new::<second>(0.018) / Force::new::<poundal>(1_000.),
-            min_output: Ratio::new::<percent>(-2.),
-            max_output: Ratio::new::<percent>(2.),
-        }
-    }
-}
-
-#[derive(Clone, Copy, PartialEq)]
-pub struct PidState {
-    error: Force,
-    output: Ratio,
-    integral: Momentum,
-}
-
-impl fmt::Debug for PidState {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        f.debug_struct("PidState")
-            .field("error", &format_args!("{:.5}", self.error.into_format_args(poundal, uom::fmt::DisplayStyle::Abbreviation)))
-            .field("output", &format_args!("{:.5}", self.output.into_format_args(percent, uom::fmt::DisplayStyle::Abbreviation)))
-            .field("integral", &format_args!("{:.5}", self.integral.into_format_args(pound_foot_per_second, uom::fmt::DisplayStyle::Abbreviation)))
-            .finish()
-    }
-}
-
-impl Default for PidState {
-    #[inline]
-    fn default() -> Self {
-        Self {
-            error: Force::new::<poundal>(0.),
-            output: Ratio::new::<percent>(0.),
-            integral: Momentum::new::<pound_foot_per_second>(0.),
-        }
-    }
-}
-
-impl PidState {
-    fn tick(self, config: &PidConfiguration, error: Force, delta_t: Time) -> Self {
-        let gained_error: Ratio = config.gain_proportion * error;
-
-        #[allow(clippy::float_cmp)]
-        let integral: Momentum = if error != self.error && error.signum() != self.error.signum() {
-            Momentum::new::<pound_foot_per_second>(0.)
-        } else {
-            self.integral + (error * delta_t) + ((error - self.error) * delta_t / 2.)
-        };
-        let gained_integral = integral * config.gain_integral;
-
-        let error_over_time = (error - self.error) / delta_t;
-
-        let max_power_delta = Ratio::new::<percent>(20.);
-        let min_power_delta = Ratio::new::<percent>(-20.);
-
-        let raw_gained_derivative: Ratio = error_over_time * config.gain_derivative;
-        let gained_derivative = clamp(raw_gained_derivative, min_power_delta, max_power_delta);
-
-        let raw_output: Ratio = gained_error + gained_integral + gained_derivative;
-        let output = clamp(raw_output, config.min_output, config.max_output);
-
-        println!("Output: {} ({}): Derivative: {} ({}), Integral: {}, proportion: {}", output.into_format_args(ratio, uom::fmt::DisplayStyle::Abbreviation), raw_output.into_format_args(ratio, uom::fmt::DisplayStyle::Abbreviation), gained_derivative.into_format_args(ratio, uom::fmt::DisplayStyle::Abbreviation), raw_gained_derivative.into_format_args(ratio, uom::fmt::DisplayStyle::Abbreviation), gained_integral.into_format_args(ratio, uom::fmt::DisplayStyle::Abbreviation), gained_error.into_format_args(ratio, uom::fmt::DisplayStyle::Abbreviation));
-
-        Self {
-            error,
-            output,
-            integral,
+            output_range: (Ratio::new::<percent>(-2.), Ratio::new::<percent>(2.)),
+            derivative_range: (Ratio::new::<percent>(-20.), Ratio::new::<percent>(20.)),
+            tolerance: Force::new::<poundal>(0.),
         }
     }
 }
@@ -748,83 +676,11 @@ impl PidState {
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    macro_rules! pid_tick_tests {
-        {
-            name: $name:ident,
-            config: $config:expr,
-            initial: $initial:expr,
-            steps: [
-                $({
-                    inputs: ($error:expr, $delta_t:expr),
-                    expect: ($expected_output:expr, $expected_integral:expr)$(,)?
-                }),*$(,)?
-            ],
-            tolerances: {
-                output: $output_tolerance:expr,
-                integral: $integral_tolerance:expr$(,)?
-            }$(,)?
-        } => {
-            #[test]
-            fn $name() {
-                let config = $config;
-                let mut state = $initial;
-                println!("Initial:    {:?}", state);
-
-                let mut step = 0;
-                let mut failed = false;
-                $(
-                    #[allow(unused_assignments)]
-                    {
-                        step += 1;
-                        let error = $error;
-                        let actual = state.tick(&config, error, $delta_t);
-                        let expected = PidState {
-                            error,
-                            output: $expected_output,
-                            integral: $expected_integral,
-                        };
-
-                        let difference = PidState {
-                            error: expected.error - actual.error,
-                            output: expected.output - actual.output,
-                            integral: expected.integral - actual.integral,
-                        };
-
-                        println!("Step {:>3} Expected:   {:?}", step, expected);
-                        println!("Step {:>3} Actual:     {:?}", step, actual);
-                        println!("Step {:>3} Difference: {:?}", step, difference);
-
-                        #[allow(clippy::float_cmp)]
-                        if actual.error != error {
-                            eprintln!("     error mismatch!");
-                            failed = true
-                        }
-
-                        if difference.output > $output_tolerance || difference.output < -$output_tolerance {
-                            eprintln!("     output mismatch!");
-                            failed = true;
-                        }
-
-                        if difference.integral > $integral_tolerance || difference.integral < -$integral_tolerance  {
-                            eprintln!("     integral mismatch!");
-                            failed = true;
-                        }
-
-                        state = actual;
-                    }
-                )*
-
-                if failed {
-                    panic!("One of the test steps had a result outside of tolerances");
-                }
-            }
-        };
-    }
+    use crate::pid::testing::pid_tick_tests;
 
     pid_tick_tests! {
         name: basic_test,
-        config: PidConfiguration::default(),
+        config: ClimbFadecPidConfiguration::default(),
         initial: PidState::default(),
         steps: [
             {
