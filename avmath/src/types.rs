@@ -1,4 +1,5 @@
 use uom::{si::{f64::*, ratio::ratio, pressure::{pascal, inch_of_mercury, self}, length::{foot, self}}, Conversion};
+use uom::typenum::{P1, Z0};
 use crate::{atmosphere::Layer, constants};
 
 pub type LapseRate = <TemperatureInterval as std::ops::Div<Length>>::Output;
@@ -8,6 +9,19 @@ pub type NumberDensity = <f64 as std::ops::Div<Volume>>::Output;
 pub type DynamicViscosity = <Pressure as std::ops::Mul<Time>>::Output;
 pub type KinematicViscosity = <Area as std::ops::Div<Time>>::Output;
 pub type FrequencyByArea = <Frequency as std::ops::Div<Area>>::Output;
+
+trait GeopotentialAltitudeKind: uom::marker::Sub + uom::marker::Neg {}
+
+//type GAlt<V> = uom::si::Quantity<uom::si::ISQ<P1, Z0, Z0, Z0, Z0, Z0, Z0, dyn GeopotentialAltitudeKind>, uom::si::SI<V>, V>;
+
+// impl<V> GAlt<V>
+// where
+//     V: uom::num_traits::Num + uom::Conversion<V>
+// {
+//     fn new() -> Self {
+//         Self::default()
+//     }
+// }
 
 #[derive(Clone, Copy, Debug, PartialEq, PartialOrd)]
 pub struct GeopotentialAltitude(Length);

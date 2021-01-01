@@ -31,20 +31,6 @@ pub trait AircraftVariable {
     fn as_raw_aircraft_variable() -> ffi::RawAircraftVariable;
 }
 
-pub trait IndexedAircraftVariable : AircraftVariable {
-    #[inline]
-    fn read_index(index: u32) -> f64 {
-        ffi::RawAircraftVariable::read(Self::as_raw_aircraft_variable(), Self::Unit::as_raw_unit(), index)
-    }
-}
-
-pub trait UnindexedAircraftVariable : AircraftVariable {
-    #[inline]
-    fn read() -> f64 {
-        ffi::RawAircraftVariable::read(Self::as_raw_aircraft_variable(), Self::Unit::as_raw_unit(), 0)
-    }
-}
-
 #[macro_export]
 macro_rules! aircraft_variable {
     ($ty:ident ( $unit:ty ): $name:literal) => {
@@ -74,7 +60,12 @@ macro_rules! indexed_aircraft_variable {
     ($ty:ident ( $unit:ty ): $name:literal) => {
         $crate::aircraft_variable!($ty($unit): $name);
 
-        impl $crate::IndexedAircraftVariable for $ty {}
+        impl $ty {
+            #[inline]
+            fn read_raw_by_index(index: u32) -> f64 {
+                $crate::ffi::RawAircraftVariable::read(<Self as $crate::AircraftVariable>::as_raw_aircraft_variable(), <<Self as $crate::AircraftVariable>::Unit as $crate::Unit>::as_raw_unit(), index)
+            }
+        }
     };
 }
 
@@ -83,7 +74,12 @@ macro_rules! unindexed_aircraft_variable {
     ($ty:ident ( $unit:ty ): $name:literal) => {
         $crate::aircraft_variable!($ty($unit): $name);
 
-        impl $crate::UnindexedAircraftVariable for $ty {}
+        impl $ty {
+            #[inline]
+            fn read_raw() -> f64 {
+                $crate::ffi::RawAircraftVariable::read(<Self as $crate::AircraftVariable>::as_raw_aircraft_variable(), <<Self as $crate::AircraftVariable>::Unit as $crate::Unit>::as_raw_unit(), 0)
+            }
+        }
     };
 }
 
@@ -92,11 +88,6 @@ pub trait NamedVariable {
     type Value: Into<f64>;
 
     fn as_raw_named_variable() -> ffi::RawNamedVariable;
-    
-    #[inline]
-    fn set(value: Self::Value) {
-        ffi::RawNamedVariable::set(Self::as_raw_named_variable(), value.into())
-    }
 }
 
 #[macro_export]
@@ -107,6 +98,11 @@ macro_rules! named_variable {
 
         impl $ty {
             const VARIABLE_NAME: &'static str = concat!($name, "\0");
+
+            #[inline]
+            fn set(value: <Self as $crate::NamedVariable>::Value) {
+                $crate::ffi::RawNamedVariable::set(<Self as $crate::NamedVariable>::as_raw_named_variable(), value.into())
+            }        
         }
         
         impl $crate::NamedVariable for $ty {

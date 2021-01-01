@@ -259,8 +259,6 @@ where
 }
 
 pub mod testing {
-    pub use crate::pid_tick_tests;
-
     #[macro_export]
     macro_rules! pid_tick_tests {
         {
@@ -298,12 +296,12 @@ pub mod testing {
 
                         let actual = state.tick(goal, &config, -current, $delta_t);
                         let expected = (
-                            $crate::pid::PidState::with_initial(goal - current, $expected_integral),
+                            $crate::PidState::with_initial(goal - current, $expected_integral),
                             $expected_output
                         );
 
                         let difference = (
-                            $crate::pid::PidState::with_initial(
+                            $crate::PidState::with_initial(
                                 expected.0.prior_error() - state.prior_error(),
                                 expected.0.integral() - state.integral(),
                             ),

@@ -1,0 +1,26 @@
+[package]
+name = "wt_cj4_wasm"
+version = "0.1.0"
+authors = ["Marcus Griep <marcus@griep.us>"]
+edition = "2018"
+
+[lib]
+crate-type = ["cdylib"]
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[profile.release]
+lto = true
+# panic = "abort"
+
+[package.metadata]
+wasm-opt = false
+
+[dependencies]
+avmath = { path = "../avmath" }
+gauge-sys = { path = "../gauge-sys" }
+num-derive = "0.3.3"
+num-traits = "0.2.14"
+parking_lot = "0.11.1"
+simconnect-sys = { path = "../simconnect-sys" }
+uom = "0.30.0"
+wt_cj4 = { path = "../wt_cj4" }

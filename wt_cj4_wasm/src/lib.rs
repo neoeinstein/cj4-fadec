@@ -1,32 +1,7 @@
 use gauge_sys::ffi::{RawServiceId, ServiceId};
 
-mod pid;
-mod controller;
+mod interop;
 mod gauges;
-mod testing;
-
-// #[no_mangle]
-// pub extern "C" fn add(a: u32, b: u32) -> u32 {
-//     a + b
-// }
-
-// #[no_mangle]
-// pub extern "C" fn testertwo() {
-//     simconnect_sys::SimConnect::new("FdGauge\0");
-// }
-
-// #[no_mangle]
-// pub extern "C" fn testeroo() -> f64 {
-//     let throttle1 = controller::Throttle::read_index(1);
-//     let throttle2 = controller::Throttle::read_index(2);
-
-//     let altitude = controller::Altitude::read();
-
-//     controller::Throttle1Mode::set(controller::ThrottleMode::Undefined);
-//     controller::Throttle1Position::set(controller::ThrottleValue::MIN.into());
-    
-//     throttle1 + throttle2 + altitude
-// }
 
 static GAUGE: parking_lot::Mutex<Option<gauges::FdGauge>> = parking_lot::const_mutex(None);
 
@@ -63,13 +38,5 @@ pub extern "C" fn FdGauge_gauge_callback(_ctx: gauge_sys::ffi::FsContext, raw_se
         }
     } else { 
         false
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    #[test]
-    fn it_works() {
-        assert_eq!(2 + 2, 4);
     }
 }
