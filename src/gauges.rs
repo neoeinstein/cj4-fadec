@@ -2,6 +2,7 @@ use std::time::{Instant, Duration};
 use num_traits::{ToPrimitive, clamp};
 use simconnect_sys::{ffi::HResult, NotificationGroup, EventType};
 use std::sync::Arc;
+use uom::si::{f64::Time, time::second};
 
 #[derive(Debug)]
 pub struct FdGauge {
@@ -52,7 +53,7 @@ impl FdGauge {
                     crate::controller::ThrottleValue(lock[1].to_f64().unwrap()),
                 ]
             };
-            self.controller.update(throttle_values, &self.simconnect, draw_data.dt);
+            self.controller.update(throttle_values, &self.simconnect, Time::new::<second>(draw_data.dt));
             self.last_update = now;
         }
 

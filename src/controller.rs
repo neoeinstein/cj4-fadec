@@ -3,6 +3,18 @@ use std::fmt;
 use gauge_sys::{IndexedAircraftVariable, UnindexedAircraftVariable, NamedVariable, gauge_unit, indexed_aircraft_variable, unindexed_aircraft_variable, named_variable};
 use num_derive::{FromPrimitive, ToPrimitive};
 use num_traits::{FromPrimitive, ToPrimitive, clamp};
+use uom::si::{
+    f64::*,
+    volume::cubic_foot,
+    force::poundal,
+    momentum::pound_foot_per_second,
+    ratio::{ratio, percent},
+    time::second,
+    length::foot,
+    mass_rate::pound_per_second,
+    mass_density::slug_per_cubic_foot,
+    acceleration::foot_per_second_squared,
+};
 
 // fn speed_of_sound(altitude: Alt) -> Velocity {
 //     let x = Altitude::new::<foot>(1.);
@@ -24,6 +36,30 @@ unindexed_aircraft_variable!(AirspeedMach(Mach): "AIRSPEED MACH");
 unindexed_aircraft_variable!(Altitude(Feet): "PLANE ALTITUDE");
 unindexed_aircraft_variable!(AmbientDensity(SluggerSlugs): "AMBIENT DENSITY");
 unindexed_aircraft_variable!(OnGround(Number): "SIM ON GROUND");
+
+impl Throttle {
+    fn read_index_typed(index: u32) -> Ratio {
+        Ratio::new::<percent>(Self::read_index(index))
+    }
+}
+
+impl Thrust {
+    fn read_index_typed(index: u32) -> Force {
+        Force::new::<poundal>(Self::read_index(index))
+    }
+}
+
+impl Altitude {
+    fn read_typed() -> avmath::PressureAltitude {
+        avmath::PressureAltitude::new::<foot>(Self::read())
+    }
+}
+
+impl AmbientDensity {
+    fn read_typed() -> MassDensity {
+        MassDensity::new::<slug_per_cubic_foot>(Self::read())
+    }
+}
 
 named_variable!(Throttle1Mode(ThrottleMode): "THROTTLE1_MODE");
 named_variable!(Throttle2Mode(ThrottleMode): "THROTTLE2_MODE");
@@ -255,7 +291,7 @@ impl ThrottleValue {
     const MIN_VALUE: f64 = -16384.;
     const MAX_VALUE: f64 = 16384.;
     const RANGE: f64 = Self::MAX_VALUE - Self::MIN_VALUE;
-    
+
     const UNDEF_MAX_VALUE: f64 = -15250.;
     const CRUISE_MAX_VALUE: f64 = 9060.; //Visually, 6360. looks better as the boundary here.
     const CRUISE_RANGE: f64 = Self::CRUISE_MAX_VALUE - Self::MIN_VALUE;
@@ -308,8 +344,8 @@ impl ThrustValue {
     pub const MIN: Self = Self(Self::MIN_VALUE);
     pub const MAX: Self = Self(Self::MAX_VALUE);
 
-    fn from_raw(value: f64) -> Self {
-        Self(value).clamp()
+    fn from_force(value: Force) -> Self {
+        Self(value.get::<poundal>()).clamp()
     }
 
     fn clamp(self) -> Self {
@@ -378,8 +414,8 @@ impl ThrottlePercent {
     pub const MIN: Self = Self(Self::MIN_VALUE);
     pub const MAX: Self = Self(Self::MAX_VALUE);
 
-    fn from_raw(value: f64) -> Self {
-        Self(value).clamp()
+    fn from_ratio(value: Ratio) -> Self {
+        Self(value.get::<percent>()).clamp()
     }
 
     fn clamp(self) -> Self {
@@ -464,10 +500,10 @@ impl EngineNumber {
         }
     }
 
-    fn set_throttle_position(self, percent: ThrottlePercent) {
+    fn set_throttle_position(self, pct: ThrottlePercent) {
         match self {
-            Self::Engine1 => Throttle1Position::set(percent),
-            Self::Engine2 => Throttle2Position::set(percent),
+            Self::Engine1 => Throttle1Position::set(pct),
+            Self::Engine2 => Throttle2Position::set(pct),
         }
     }
 
@@ -489,17 +525,17 @@ pub struct FdController {
 }
 
 impl FdController {
-    pub const fn new() -> Self {
+    pub fn new() -> Self {
         Self {
-            pid_config: PidConfiguration::DEFAULT,
-            pid_state: [PidState::INITIAL; 2],
+            pid_config: PidConfiguration::default(),
+            pid_state: [PidState::default(); 2],
             throttle_axes: [ThrottleValue::MIN; 2],
             throttle_mode: [ThrottleMode::Undefined; 2],
             enabled: true,
         }
     }
 
-    pub fn update(&mut self, throttle_axes: [ThrottleValue; 2], simconnect: &simconnect_sys::SimConnect, delta_t: f64) {
+    pub fn update(&mut self, throttle_axes: [ThrottleValue; 2], simconnect: &simconnect_sys::SimConnect, delta_t: Time) {
         //println!("Updating");
         self.throttle_axes = throttle_axes;
         self.update_throttle_mode(EngineNumber::Engine1);
@@ -512,14 +548,11 @@ impl FdController {
         self.update_visible_throttle(EngineNumber::Engine2);
     }
 
-    fn get_thrust_update(&mut self, delta_t: f64) -> EngineDataControl {
+    fn get_thrust_update(&mut self, delta_t: Time) -> EngineDataControl {
         //println!("Updating thrust");
         let left = self.get_desired_throttle(EngineNumber::Engine1, delta_t);
         let right = self.get_desired_throttle(EngineNumber::Engine2, delta_t);
-        //println!("Done");
-        let f = format!("Thrust target: {}/{}, Throttle percent: {}/{}", left.0, right.0, left.1, right.1);
-        //let f = left.0.to_string();//format!("Thrust target: {}/{}", left.0, right.0);
-        println!("{}", f);
+        //println!("Thrust target: {}/{}, Throttle percent: {}/{}", left.0, right.0, left.1, right.1);
 
         EngineDataControl {
             throttle_left: left.1,
@@ -527,7 +560,7 @@ impl FdController {
         }
     }
 
-    fn get_desired_throttle(&mut self, engine: EngineNumber, delta_t: f64) -> (ThrustValue, ThrottlePercent) {
+    fn get_desired_throttle(&mut self, engine: EngineNumber, delta_t: Time) -> (ThrustValue, ThrottlePercent) {
         let normalized_throttle = self.throttle_axes[engine.index()].normalize();
 
         if !self.enabled {
@@ -542,24 +575,41 @@ impl FdController {
                 (ThrustValue::MAX, ThrottlePercent::MAX)
             }
             ThrottleMode::Climb => {
-                let gross_thrust = convert_to_gross_thrust(Thrust::read_index(engine.sim_index()), AirspeedMach::read());
-                let max_density_thrust = get_max_density_thrust(AmbientDensity::read());
-                let plane_altitude = Altitude::read();
+                let gross_thrust = convert_to_gross_thrust(Thrust::read_index_typed(engine.sim_index()), AirspeedMach::read());
+                let max_density_thrust = get_max_density_thrust(AmbientDensity::read_typed());
+                let plane_altitude = Altitude::read_typed();
 
-                let low_altitude_thrust = ((7000. - plane_altitude) / 24.).max(0.);
-                let low_thrust_target = 2050. + low_altitude_thrust;
+                println!("{:?}: Gross thrust: {}, Max density thrust: {}, altitude: {}", engine, gross_thrust.into_format_args(poundal, uom::fmt::DisplayStyle::Abbreviation), max_density_thrust.into_format_args(poundal, uom::fmt::DisplayStyle::Abbreviation), plane_altitude.remove_context().into_format_args(foot, uom::fmt::DisplayStyle::Abbreviation));
 
-                let target_thrust = if (max_density_thrust * THRUST_FACTOR) < low_thrust_target {
-                    let high_altitude_thrust = clamp((-35000. + plane_altitude) / 64., 0., 110.);
-                    (max_density_thrust * THRUST_FACTOR) - high_altitude_thrust
+                let low_altitude_limit = avmath::PressureAltitude::new::<foot>(7000.);
+                let altitude_reduction: Length = low_altitude_limit - plane_altitude;
+                let low_altitude_thrust: Force =
+                    (altitude_reduction * MassRate::new::<pound_per_second>(1.) / Time::new::<second>(24.))
+                        .max(Force::new::<poundal>(0.));
+                let low_thrust_target: Force = Force::new::<poundal>(2050.) + low_altitude_thrust;
+
+                let target_thrust: Force = if (max_density_thrust * THRUST_FACTOR) < low_thrust_target {
+                    let high_altitude_limit = avmath::PressureAltitude::new::<foot>(35000.);
+                    let altitude_reduction: Length = plane_altitude - high_altitude_limit;
+                    let high_altitude_thrust_reduction: Force =
+                        (altitude_reduction * MassRate::new::<pound_per_second>(1.) / Time::new::<second>(64.))
+                            .max(Force::new::<poundal>(0.))
+                            .min(Force::new::<poundal>(110.));
+
+                    (max_density_thrust * THRUST_FACTOR) - high_altitude_thrust_reduction
                 } else {
                     low_thrust_target
                 };
 
                 let error = target_thrust - gross_thrust;
+
                 let next_state = self.pid_state[engine.index()].tick(&self.pid_config, error, delta_t);
                 self.pid_state[engine.index()] = next_state;
-                (ThrustValue::from_raw(target_thrust), ThrottlePercent::from_raw(Throttle::read_index(engine.sim_index()) + next_state.output))
+
+                let next_throttle = Throttle::read_index_typed(engine.sim_index()) + next_state.output;
+                println!("{:?}: Target thrust: {} (error: {}); adjusting throttle {} to {} of maximum", engine, target_thrust.into_format_args(poundal, uom::fmt::DisplayStyle::Abbreviation), error.into_format_args(poundal, uom::fmt::DisplayStyle::Abbreviation), next_state.output.into_format_args(ratio, uom::fmt::DisplayStyle::Abbreviation), next_throttle.into_format_args(ratio, uom::fmt::DisplayStyle::Abbreviation));
+
+                (ThrustValue::from_force(target_thrust), ThrottlePercent::from_ratio(next_throttle))
             }
             ThrottleMode::Cruise | ThrottleMode::Undefined => {
                 let cruise_normalized_throttle = self.throttle_axes[engine.index()].normalize_cruise();
@@ -599,83 +649,192 @@ impl FdController {
     }
 }
 
-pub fn convert_to_gross_thrust(thrust_in: f64, mach_in: f64) -> f64 {
+pub fn convert_to_gross_thrust(thrust_in: Force, mach_in: f64) -> Force {
     thrust_in * (1. + (mach_in.powi(2) / 5.)).powf(3.5)
 }
 
-pub fn get_max_density_thrust(ambient_density: f64) -> f64 {
+pub fn get_max_density_thrust(ambient_density: MassDensity) -> Force {
     // Slugs per cubic ft
     // 1 lbf = 1 slug * ft/s^2
-    let density = ambient_density * 1000.;
-    const DENSITY_FACTOR: f64 = 1351.6;
-    density * DENSITY_FACTOR + 250.
+    // 0.0023982000 sl/ft^3 standard density MSL
+    let DENSITY_FACTOR = Volume::new::<cubic_foot>(1.) * Acceleration::new::<foot_per_second_squared>(1_351_600.);
+    let f: Force = ambient_density * DENSITY_FACTOR;
+    f + Force::new::<poundal>(250.)
 }
 
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct PidConfiguration {
-    pub gain_proportion: f64,
-    pub gain_integral: f64,
-    pub gain_derivative: f64,
-    pub min_output: f64,
-    pub max_output: f64,
-}
-
-impl PidConfiguration {
-    const DEFAULT: Self = Self {
-        gain_proportion: 0.0012,
-        gain_integral: 0.0001,
-        gain_derivative: 0.0018,
-        min_output: -2.,
-        max_output: 2.,
-    };
+    pub gain_proportion: <Ratio as std::ops::Div<Force>>::Output,
+    pub gain_integral: <Ratio as std::ops::Div<Momentum>>::Output,
+    pub gain_derivative: <Time as std::ops::Div<Force>>::Output,
+    pub min_output: Ratio,
+    pub max_output: Ratio,
 }
 
 impl Default for PidConfiguration {
+    #[inline]
     fn default() -> Self {
-        Self::DEFAULT
+        Self {
+            gain_proportion: Ratio::new::<percent>(0.0012) / Force::new::<poundal>(1.),
+            gain_integral: Ratio::new::<percent>(0.0001) / Momentum::new::<pound_foot_per_second>(1.),
+            gain_derivative: Time::new::<second>(0.0018) / Force::new::<poundal>(1.),
+            min_output: Ratio::new::<percent>(-2.),
+            max_output: Ratio::new::<percent>(2.),
+        }
     }
 }
 
-#[derive(Clone, Copy, Debug, PartialEq)]
+#[derive(Clone, Copy, PartialEq)]
 pub struct PidState {
-    error: f64,
-    output: f64,
-    integral: f64,
+    error: Force,
+    output: Ratio,
+    integral: Momentum,
 }
 
-impl PidState {
-    const INITIAL: Self = Self {
-        error: 0.,
-        output: 0.,
-        integral: 0.,
-    };
+impl fmt::Debug for PidState {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        f.debug_struct("PidState")
+            .field("error", &format_args!("{:.5}", self.error.into_format_args(poundal, uom::fmt::DisplayStyle::Abbreviation)))
+            .field("output", &format_args!("{:.5}", self.output.into_format_args(percent, uom::fmt::DisplayStyle::Abbreviation)))
+            .field("integral", &format_args!("{:.5}", self.integral.into_format_args(pound_foot_per_second, uom::fmt::DisplayStyle::Abbreviation)))
+            .finish()
+    }
 }
 
 impl Default for PidState {
+    #[inline]
     fn default() -> Self {
-        Self::INITIAL
+        Self {
+            error: Force::new::<poundal>(0.),
+            output: Ratio::new::<percent>(0.),
+            integral: Momentum::new::<pound_foot_per_second>(0.),
+        }
     }
 }
 
 impl PidState {
-    fn tick(self, config: &PidConfiguration, error: f64, delta_t: f64) -> Self {
-        let proportion = config.gain_proportion * error;
+    fn tick(self, config: &PidConfiguration, error: Force, delta_t: Time) -> Self {
+        let gained_error: Ratio = config.gain_proportion * error;
 
         #[allow(clippy::float_cmp)]
-        let integral = if error != self.error && error.signum() != self.error.signum() {
-            0.
+        let integral: Momentum = if error != self.error && error.signum() != self.error.signum() {
+            Momentum::new::<pound_foot_per_second>(0.)
         } else {
-            self.integral + (error * delta_t) + ((delta_t * (error - self.error)) / 2.)
+            self.integral + (error * delta_t) + ((error - self.error) * delta_t / 2.)
         };
+        let gained_integral = integral * config.gain_integral;
 
-        let derivative = clamp(config.gain_derivative * ((error - self.error) / delta_t), -20., 20.);
+        let error_over_time = (error - self.error) / delta_t;
 
-        let output = clamp(proportion + config.gain_integral * integral + derivative, config.min_output, config.max_output);
+        let max_power_delta = Ratio::new::<percent>(20.);
+        let min_power_delta = Ratio::new::<percent>(-20.);
+
+        let raw_gained_derivative: Ratio = error_over_time * config.gain_derivative;
+        let gained_derivative = clamp(raw_gained_derivative, min_power_delta, max_power_delta);
+
+        let raw_output: Ratio = gained_error + gained_integral + gained_derivative;
+        let output = clamp(raw_output, config.min_output, config.max_output);
+
+        println!("Output: {} ({}): Derivative: {} ({}), Integral: {}, proportion: {}", output.into_format_args(ratio, uom::fmt::DisplayStyle::Abbreviation), raw_output.into_format_args(ratio, uom::fmt::DisplayStyle::Abbreviation), gained_derivative.into_format_args(ratio, uom::fmt::DisplayStyle::Abbreviation), raw_gained_derivative.into_format_args(ratio, uom::fmt::DisplayStyle::Abbreviation), gained_integral.into_format_args(ratio, uom::fmt::DisplayStyle::Abbreviation), gained_error.into_format_args(ratio, uom::fmt::DisplayStyle::Abbreviation));
 
         Self {
             error,
             output,
             integral,
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    macro_rules! pid_tick_tests {
+        {
+            name: $name:ident,
+            config: $config:expr,
+            initial: $initial:expr,
+            steps: [
+                $({
+                    inputs: ($error:expr, $delta_t:expr),
+                    expect: ($expected_output:expr, $expected_integral:expr)$(,)?
+                }),*$(,)?
+            ],
+            tolerances: {
+                output: $output_tolerance:expr,
+                integral: $integral_tolerance:expr$(,)?
+            }$(,)?
+        } => {
+            #[test]
+            fn $name() {
+                let config = $config;
+                let mut state = $initial;
+                println!("Initial:    {:?}", state);
+
+                let mut step = 0;
+                let mut failed = false;
+                $(
+                    #[allow(unused_assignments)]
+                    {
+                        step += 1;
+                        let error = $error;
+                        let actual = state.tick(&config, error, $delta_t);
+                        let expected = PidState {
+                            error,
+                            output: $expected_output,
+                            integral: $expected_integral,
+                        };
+
+                        let difference = PidState {
+                            error: expected.error - actual.error,
+                            output: expected.output - actual.output,
+                            integral: expected.integral - actual.integral,
+                        };
+
+                        println!("Step {:>3} Expected:   {:?}", step, expected);
+                        println!("Step {:>3} Actual:     {:?}", step, actual);
+                        println!("Step {:>3} Difference: {:?}", step, difference);
+
+                        #[allow(clippy::float_cmp)]
+                        if actual.error != error {
+                            eprintln!("     error mismatch!");
+                            failed = true
+                        }
+
+                        if difference.output > $output_tolerance {
+                            eprintln!("     output mismatch!");
+                            failed = true;
+                        }
+
+                        if difference.integral > $integral_tolerance {
+                            eprintln!("     integral mismatch!");
+                            failed = true;
+                        }
+
+                        state = actual;
+                    }
+                )*
+
+                if failed {
+                    panic!("One of the test steps had a result outside of tolerances");
+                }
+            }
+        };
+    }
+
+    pid_tick_tests! {
+        name: basic_test,
+        config: PidConfiguration::default(),
+        initial: PidState::default(),
+        steps: [
+            {
+                inputs: (Force::new::<poundal>(200.), Time::new::<second>(0.0166666666666666)),
+                expect: (Ratio::new::<percent>(2.), Momentum::new::<pound_foot_per_second>(4.9999999999999805))
+            },
+        ],
+        tolerances: {
+            output: Ratio::new::<ratio>(0.00001),
+            integral: Momentum::new::<pound_foot_per_second>(0.00001),
+        },
     }
 }

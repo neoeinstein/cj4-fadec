@@ -16,11 +16,13 @@ lto = true
 # panic = "abort"
 
 [dependencies]
+avmath = { path = "./avmath" }
 gauge-sys = { path = "./gauge-sys" }
 num-derive = "*"
 num-traits = "*"
 simconnect-sys = { path = "./simconnect-sys" }
 parking_lot = "*"
+uom = "*"
 
 [workspace]
 members = [
