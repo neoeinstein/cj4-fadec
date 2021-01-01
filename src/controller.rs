@@ -675,9 +675,9 @@ impl Default for PidConfiguration {
     #[inline]
     fn default() -> Self {
         Self {
-            gain_proportion: Ratio::new::<percent>(0.0012) / Force::new::<poundal>(1.),
+            gain_proportion: Ratio::new::<percent>(1.2) / Force::new::<poundal>(1_000.),
             gain_integral: Ratio::new::<percent>(0.0001) / Momentum::new::<pound_foot_per_second>(1.),
-            gain_derivative: Time::new::<second>(0.0018) / Force::new::<poundal>(1.),
+            gain_derivative: Time::new::<second>(0.018) / Force::new::<poundal>(1_000.),
             min_output: Ratio::new::<percent>(-2.),
             max_output: Ratio::new::<percent>(2.),
         }
@@ -801,12 +801,12 @@ mod tests {
                             failed = true
                         }
 
-                        if difference.output > $output_tolerance {
+                        if difference.output > $output_tolerance || difference.output < -$output_tolerance {
                             eprintln!("     output mismatch!");
                             failed = true;
                         }
 
-                        if difference.integral > $integral_tolerance {
+                        if difference.integral > $integral_tolerance || difference.integral < -$integral_tolerance  {
                             eprintln!("     integral mismatch!");
                             failed = true;
                         }
