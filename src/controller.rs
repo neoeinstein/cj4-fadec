@@ -518,7 +518,7 @@ impl EngineNumber {
 
 #[derive(Debug)]
 pub struct FdController {
-    pid_config: PidConfiguration<Force>,
+    pid_config: PidConfiguration<Force, Ratio>,
     pid_state: [PidState<Force>; 2],
     throttle_axes: [ThrottleValue; 2],
     throttle_mode: [ThrottleMode; 2],
@@ -576,11 +576,14 @@ impl FdController {
                 (ThrustValue::MAX, ThrottlePercent::MAX)
             }
             ThrottleMode::Climb => {
-                let gross_thrust = convert_to_gross_thrust(Thrust::read_index_typed(engine.sim_index()), AirspeedMach::read());
-                let max_density_thrust = get_max_density_thrust(AmbientDensity::read_typed());
+                let raw_thrust = Thrust::read_index_typed(engine.sim_index());
+                let mach_speed = AirspeedMach::read();
+                let ambient_density = AmbientDensity::read_typed();
+                let gross_thrust = convert_to_gross_thrust(raw_thrust, mach_speed);
+                let max_density_thrust = get_max_density_thrust(ambient_density);
                 let plane_altitude = Altitude::read_typed();
 
-                println!("{:?}: Gross thrust: {}, Max density thrust: {}, altitude: {}", engine, gross_thrust.into_format_args(poundal, uom::fmt::DisplayStyle::Abbreviation), max_density_thrust.into_format_args(poundal, uom::fmt::DisplayStyle::Abbreviation), plane_altitude.remove_context().into_format_args(foot, uom::fmt::DisplayStyle::Abbreviation));
+                println!("{:?}: Raw thrust: {:.3}, Airspeed: {:.3}, Gross thrust: {:.3}, Ambient density: {:.4}, Max density thrust: {:.3}, altitude: {:.0}", engine, raw_thrust.into_format_args(poundal, uom::fmt::DisplayStyle::Abbreviation), mach_speed, gross_thrust.into_format_args(poundal, uom::fmt::DisplayStyle::Abbreviation), ambient_density.into_format_args(slug_per_cubic_foot, uom::fmt::DisplayStyle::Abbreviation), max_density_thrust.into_format_args(poundal, uom::fmt::DisplayStyle::Abbreviation), plane_altitude.remove_context().into_format_args(foot, uom::fmt::DisplayStyle::Abbreviation));
 
                 let low_altitude_limit = avmath::GeopotentialAltitude::new::<foot>(7000.);
                 let altitude_reduction: Length = low_altitude_limit - plane_altitude;
@@ -605,7 +608,7 @@ impl FdController {
                 let output = self.pid_state[engine.index()].tick(target_thrust, &self.pid_config, gross_thrust, delta_t);
 
                 let next_throttle = Throttle::read_index_typed(engine.sim_index()) + output;
-                //println!("{:?}: Target thrust: {} (error: {}); adjusting throttle {} to {} of maximum", engine, target_thrust.into_format_args(poundal, uom::fmt::DisplayStyle::Abbreviation), error.into_format_args(poundal, uom::fmt::DisplayStyle::Abbreviation), next_state.output.into_format_args(ratio, uom::fmt::DisplayStyle::Abbreviation), next_throttle.into_format_args(ratio, uom::fmt::DisplayStyle::Abbreviation));
+                println!("{:?}: Target thrust: {:.4} (error: {:+.4}); adjusting throttle {:+.4} to {:.4} of maximum", engine, target_thrust.into_format_args(poundal, uom::fmt::DisplayStyle::Abbreviation), self.pid_state[engine.index()].prior_error().into_format_args(poundal, uom::fmt::DisplayStyle::Abbreviation), output.into_format_args(ratio, uom::fmt::DisplayStyle::Abbreviation), next_throttle.into_format_args(ratio, uom::fmt::DisplayStyle::Abbreviation));
 
                 (ThrustValue::from_force(target_thrust), ThrottlePercent::from_ratio(next_throttle))
             }
@@ -652,7 +655,7 @@ fn convert_to_gross_thrust(thrust_in: Force, mach_in: f64) -> Force {
 }
 
 fn get_max_density_thrust(ambient_density: MassDensity) -> Force {
-    let DENSITY_FACTOR = Volume::new::<cubic_foot>(1.) * Acceleration::new::<foot_per_second_squared>(1_351_600.);
+    let DENSITY_FACTOR = Volume::new::<cubic_foot>(42_009.0345696695) * Acceleration::new::<foot_per_second_squared>(1.);
     let f: Force = ambient_density * DENSITY_FACTOR;
     f + Force::new::<poundal>(250.)
 }
@@ -661,7 +664,7 @@ struct ClimbFadecPidConfiguration;
 
 impl ClimbFadecPidConfiguration {
     #[inline]
-    fn default() -> PidConfiguration<Force> {
+    fn default() -> PidConfiguration<Force, Ratio> {
         PidConfiguration {
             gain_proportion: Ratio::new::<percent>(1.2) / Force::new::<poundal>(1_000.),
             gain_integral: Ratio::new::<percent>(0.0001) / Momentum::new::<pound_foot_per_second>(1.),
@@ -677,6 +680,28 @@ impl ClimbFadecPidConfiguration {
 mod tests {
     use super::*;
     use crate::pid::testing::pid_tick_tests;
+
+    #[test]
+    fn t_get_max_density_thrust() {
+        let input = MassDensity::new::<slug_per_cubic_foot>(0.00241899350658059);
+
+        //0.03108096668
+
+        let expected = 0.00241899350658059 * 1000. * 1351.6 + 250.;
+        let actual = get_max_density_thrust(input).get::<poundal>();
+
+        crate::testing::assert_equal_in_significant_figures(expected, actual, 12)
+    }
+
+    #[test]
+    fn t_get_max_density_thrust_2() {
+        let input = MassDensity::new::<slug_per_cubic_foot>(0.00141899350658059);
+
+        let expected: f64 = 0.00141899350658059 * 1000. * 1351.6 + 250.;
+        let actual = get_max_density_thrust(input).get::<poundal>();
+
+        crate::testing::assert_equal_in_significant_figures(expected, actual, 12)
+    }
 
     pid_tick_tests! {
         name: basic_test,
@@ -729,7 +754,7 @@ mod tests {
             },
         ],
         tolerances: {
-            output: Ratio::new::<ratio>(0.00001),
+            output: Ratio::new::<percent>(0.001),
             integral: Momentum::new::<pound_foot_per_second>(0.00001),
         },
     }

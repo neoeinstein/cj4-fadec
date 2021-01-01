@@ -3,6 +3,7 @@ use gauge_sys::ffi::{RawServiceId, ServiceId};
 mod pid;
 mod controller;
 mod gauges;
+mod testing;
 
 // #[no_mangle]
 // pub extern "C" fn add(a: u32, b: u32) -> u32 {
