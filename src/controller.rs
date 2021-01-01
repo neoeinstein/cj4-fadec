@@ -831,6 +831,46 @@ mod tests {
                 inputs: (Force::new::<poundal>(200.), Time::new::<second>(0.0166666666666666)),
                 expect: (Ratio::new::<percent>(2.), Momentum::new::<pound_foot_per_second>(4.9999999999999805))
             },
+            {
+                inputs: (Force::new::<poundal>(180.), Time::new::<second>(0.0166666666666666)),
+                expect: (Ratio::new::<percent>(-1.9432166666666753), Momentum::new::<pound_foot_per_second>(7.833333333333302))
+            },
+            {
+                inputs: (Force::new::<poundal>(20.), Time::new::<second>(0.0466666666666666)),
+                expect: (Ratio::new::<percent>(-2.0), Momentum::new::<pound_foot_per_second>(5.033333333333306))
+            },
+            {
+                inputs: (Force::new::<poundal>(50.), Time::new::<second>(0.0166666666666666)),
+                expect: (Ratio::new::<percent>(2.0), Momentum::new::<pound_foot_per_second>(6.116666666666635))
+            },
+            {
+                inputs: (Force::new::<poundal>(90.), Time::new::<second>(0.0136666666666666)),
+                expect: (Ratio::new::<percent>(2.0), Momentum::new::<pound_foot_per_second>(7.619999999999961))
+            },
+            {
+                inputs: (Force::new::<poundal>(-100.), Time::new::<second>(0.0166666666666666)),
+                expect: (Ratio::new::<percent>(-2.0), Momentum::new::<pound_foot_per_second>(0.0))
+            },
+            {
+                inputs: (Force::new::<poundal>(-10.), Time::new::<second>(0.0166666666666666)),
+                expect: (Ratio::new::<percent>(2.0), Momentum::new::<pound_foot_per_second>(0.583333333333331))
+            },
+            {
+                inputs: (Force::new::<poundal>(-9.), Time::new::<second>(0.0166666666666666)),
+                expect: (Ratio::new::<percent>(0.0972441666666671), Momentum::new::<pound_foot_per_second>(0.44166666666666493))
+            },
+            {
+                inputs: (Force::new::<poundal>(-3.), Time::new::<second>(0.0166666666666666)),
+                expect: (Ratio::new::<percent>(0.6444441666666693), Momentum::new::<pound_foot_per_second>(0.44166666666666493))
+            },
+            {
+                inputs: (Force::new::<poundal>(-1.), Time::new::<second>(0.0166666666666666)),
+                expect: (Ratio::new::<percent>(0.21484416666666753), Momentum::new::<pound_foot_per_second>(0.44166666666666493))
+            },
+            {
+                inputs: (Force::new::<poundal>(0.5), Time::new::<second>(1.)),
+                expect: (Ratio::new::<percent>(0.0033), Momentum::new::<pound_foot_per_second>(0.0))
+            },
         ],
         tolerances: {
             output: Ratio::new::<ratio>(0.00001),
