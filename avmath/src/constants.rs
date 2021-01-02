@@ -5,12 +5,20 @@
 use crate::types::{InvLapseRate, LapseRate};
 use std::ops::Div;
 use uom::si::{
-    acceleration::meter_per_second_squared, amount_of_substance::kilomole,
-    available_energy::joule_per_kilogram, f64::*, length::meter,
-    mass_density::kilogram_per_cubic_meter, molar_energy::joule_per_mole,
-    molar_mass::kilogram_per_mole, pressure::hectopascal, ratio::ratio,
-    specific_heat_capacity::joule_per_kilogram_kelvin, temperature_interval::kelvin as diff_kelvin,
-    thermodynamic_temperature::{degree_celsius as celsius, kelvin}, velocity::meter_per_second,
+    acceleration::meter_per_second_squared,
+    amount_of_substance::kilomole,
+    available_energy::joule_per_kilogram,
+    f64::*,
+    length::meter,
+    mass_density::kilogram_per_cubic_meter,
+    molar_energy::joule_per_mole,
+    molar_mass::kilogram_per_mole,
+    pressure::hectopascal,
+    ratio::ratio,
+    specific_heat_capacity::joule_per_kilogram_kelvin,
+    temperature_interval::kelvin as diff_kelvin,
+    thermodynamic_temperature::{degree_celsius as celsius, kelvin},
+    velocity::meter_per_second,
 };
 
 /// Avogadro's number (N<sub>A</sub>)
@@ -20,7 +28,7 @@ pub fn avogadros_number() -> <f64 as Div<AmountOfSubstance>>::Output {
 }
 
 /// Molecular weight of dry air (M<sub>d</sub> or M)
-/// 
+///
 /// Identified as M₀ in the ICAO manual
 #[inline(always)]
 pub fn Md() -> MolarMass {
@@ -34,7 +42,7 @@ pub fn Mv() -> MolarMass {
 }
 
 /// Ideal gas constant (R)
-/// 
+///
 /// Identified as R<sup>*</sup> in the ICAO manual
 #[inline(always)]
 pub fn R() -> <MolarEnergy as Div<ThermodynamicTemperature>>::Output {
@@ -73,7 +81,7 @@ pub fn water_freezing_point_msl() -> ThermodynamicTemperature {
 }
 
 /// Dry air constant for dynamic viscosity calculations (β<sub>s</sub>) in kg / m·s·K<sup>½</sup>
-/// 
+///
 /// Used for the calculation of dynamic viscosity. This value is provided
 /// without units assigned beacuse the exponent is not possible to model
 /// in the dimension scheme utilized. Thus, units support
@@ -84,7 +92,7 @@ pub fn Bs() -> f64 {
 }
 
 /// The Sutherland temperature (S)
-/// 
+///
 /// Used for the calculation of dynamic viscosity.
 #[inline(always)]
 pub fn S() -> TemperatureInterval {
@@ -92,7 +100,7 @@ pub fn S() -> TemperatureInterval {
 }
 
 /// Adiabatic index of dry air (κ)
-/// 
+///
 /// The ratio of the specific heat of dry air at constant pressure to its
 /// specific heat at constant volume.
 #[inline(always)]
@@ -113,7 +121,7 @@ pub fn SigmaSquared() -> Area {
 }
 
 /// Standard geopotential metre (m′)
-/// 
+///
 /// As defined by the World Meteorological Organization
 #[inline(always)]
 pub fn standard_geopotential_metre() -> AvailableEnergy {
@@ -158,4 +166,3 @@ pub fn standard_temperature_msl() -> ThermodynamicTemperature {
 pub fn dry_air_relative_humidity() -> Ratio {
     Ratio::new::<ratio>(0.)
 }
-

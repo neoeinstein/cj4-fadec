@@ -1,5 +1,5 @@
 //! # <strong>Av</strong>iation <strong>Math</strong>ematics (AvMath)
-//! 
+//!
 //! A library of functions and utilities surrounding calculations
 //! relevant to aviation and simulation.
 

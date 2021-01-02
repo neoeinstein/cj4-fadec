@@ -1,12 +1,12 @@
 //! Layers of the ICAO International Standard Atmosphere
 
 use crate::{GeopotentialAltitude, LapseRate};
+use once_cell::sync::Lazy;
+use std::ops::Range;
 use uom::si::{
     f64::*, length::kilometer, mass_density::kilogram_per_cubic_meter, pressure::hectopascal,
     temperature_interval::kelvin as diff_kelvin, thermodynamic_temperature::kelvin,
 };
-use once_cell::sync::Lazy;
-use std::ops::Range;
 
 /// A layer of the atmosphere
 #[derive(Clone, Debug)]
@@ -87,68 +87,92 @@ impl Layer {
 fn construct_layers() -> [Layer; 8] {
     [
         Layer {
-            altitude: GeopotentialAltitude::new::<kilometer>(-5.)..GeopotentialAltitude::new::<kilometer>(0.),
-            pressure: Pressure::new::<hectopascal>(1.77687e3)..Pressure::new::<hectopascal>(1.01325e3),
-            density: MassDensity::new::<kilogram_per_cubic_meter>(1.93047)..MassDensity::new::<kilogram_per_cubic_meter>(1.22500),
+            altitude: GeopotentialAltitude::new::<kilometer>(-5.)
+                ..GeopotentialAltitude::new::<kilometer>(0.),
+            pressure: Pressure::new::<hectopascal>(1.77687e3)
+                ..Pressure::new::<hectopascal>(1.01325e3),
+            density: MassDensity::new::<kilogram_per_cubic_meter>(1.93047)
+                ..MassDensity::new::<kilogram_per_cubic_meter>(1.22500),
             base_temperature: ThermodynamicTemperature::new::<kelvin>(320.65),
             lapse_rate: Some(
                 TemperatureInterval::new::<diff_kelvin>(-6.5) / Length::new::<kilometer>(1.),
             ),
         },
         Layer {
-            altitude: GeopotentialAltitude::new::<kilometer>(0.)..GeopotentialAltitude::new::<kilometer>(11.),
-            pressure: Pressure::new::<hectopascal>(1.01325e3)..Pressure::new::<hectopascal>(2.26320e2),
-            density: MassDensity::new::<kilogram_per_cubic_meter>(1.22500)..MassDensity::new::<kilogram_per_cubic_meter>(3.63918e-1),
+            altitude: GeopotentialAltitude::new::<kilometer>(0.)
+                ..GeopotentialAltitude::new::<kilometer>(11.),
+            pressure: Pressure::new::<hectopascal>(1.01325e3)
+                ..Pressure::new::<hectopascal>(2.26320e2),
+            density: MassDensity::new::<kilogram_per_cubic_meter>(1.22500)
+                ..MassDensity::new::<kilogram_per_cubic_meter>(3.63918e-1),
             base_temperature: ThermodynamicTemperature::new::<kelvin>(288.150),
             lapse_rate: Some(
                 TemperatureInterval::new::<diff_kelvin>(-6.5) / Length::new::<kilometer>(1.),
             ),
         },
         Layer {
-            altitude: GeopotentialAltitude::new::<kilometer>(11.)..GeopotentialAltitude::new::<kilometer>(20.),
-            pressure: Pressure::new::<hectopascal>(2.26320e2)..Pressure::new::<hectopascal>(5.47487e1),
-            density: MassDensity::new::<kilogram_per_cubic_meter>(3.63918e-1)..MassDensity::new::<kilogram_per_cubic_meter>(8.80345e-2),
+            altitude: GeopotentialAltitude::new::<kilometer>(11.)
+                ..GeopotentialAltitude::new::<kilometer>(20.),
+            pressure: Pressure::new::<hectopascal>(2.26320e2)
+                ..Pressure::new::<hectopascal>(5.47487e1),
+            density: MassDensity::new::<kilogram_per_cubic_meter>(3.63918e-1)
+                ..MassDensity::new::<kilogram_per_cubic_meter>(8.80345e-2),
             base_temperature: ThermodynamicTemperature::new::<kelvin>(216.650),
             lapse_rate: None,
         },
         Layer {
-            altitude: GeopotentialAltitude::new::<kilometer>(20.)..GeopotentialAltitude::new::<kilometer>(32.),
-            pressure: Pressure::new::<hectopascal>(5.47487e1)..Pressure::new::<hectopascal>(8.68014e0),
-            density: MassDensity::new::<kilogram_per_cubic_meter>(8.80345e-2)..MassDensity::new::<kilogram_per_cubic_meter>(1.32249e-2),
+            altitude: GeopotentialAltitude::new::<kilometer>(20.)
+                ..GeopotentialAltitude::new::<kilometer>(32.),
+            pressure: Pressure::new::<hectopascal>(5.47487e1)
+                ..Pressure::new::<hectopascal>(8.68014e0),
+            density: MassDensity::new::<kilogram_per_cubic_meter>(8.80345e-2)
+                ..MassDensity::new::<kilogram_per_cubic_meter>(1.32249e-2),
             base_temperature: ThermodynamicTemperature::new::<kelvin>(216.650),
             lapse_rate: Some(
                 TemperatureInterval::new::<diff_kelvin>(1.) / Length::new::<kilometer>(1.),
             ),
         },
         Layer {
-            altitude: GeopotentialAltitude::new::<kilometer>(32.)..GeopotentialAltitude::new::<kilometer>(47.),
-            pressure: Pressure::new::<hectopascal>(8.68014e0)..Pressure::new::<hectopascal>(1.10906e0),
-            density: MassDensity::new::<kilogram_per_cubic_meter>(1.32249e-2)..MassDensity::new::<kilogram_per_cubic_meter>(1.42752e0),
+            altitude: GeopotentialAltitude::new::<kilometer>(32.)
+                ..GeopotentialAltitude::new::<kilometer>(47.),
+            pressure: Pressure::new::<hectopascal>(8.68014e0)
+                ..Pressure::new::<hectopascal>(1.10906e0),
+            density: MassDensity::new::<kilogram_per_cubic_meter>(1.32249e-2)
+                ..MassDensity::new::<kilogram_per_cubic_meter>(1.42752e0),
             base_temperature: ThermodynamicTemperature::new::<kelvin>(228.650),
             lapse_rate: Some(
                 TemperatureInterval::new::<diff_kelvin>(2.8) / Length::new::<kilometer>(1.),
             ),
         },
         Layer {
-            altitude: GeopotentialAltitude::new::<kilometer>(47.)..GeopotentialAltitude::new::<kilometer>(51.),
-            pressure: Pressure::new::<hectopascal>(6.69384e-1)..Pressure::new::<hectopascal>(1.10906e0),
-            density: MassDensity::new::<kilogram_per_cubic_meter>(1.42752e0)..MassDensity::new::<kilogram_per_cubic_meter>(8.61600e-4),
+            altitude: GeopotentialAltitude::new::<kilometer>(47.)
+                ..GeopotentialAltitude::new::<kilometer>(51.),
+            pressure: Pressure::new::<hectopascal>(6.69384e-1)
+                ..Pressure::new::<hectopascal>(1.10906e0),
+            density: MassDensity::new::<kilogram_per_cubic_meter>(1.42752e0)
+                ..MassDensity::new::<kilogram_per_cubic_meter>(8.61600e-4),
             base_temperature: ThermodynamicTemperature::new::<kelvin>(270.650),
             lapse_rate: None,
         },
         Layer {
-            altitude: GeopotentialAltitude::new::<kilometer>(51.)..GeopotentialAltitude::new::<kilometer>(71.),
-            pressure: Pressure::new::<hectopascal>(6.69384e-1)..Pressure::new::<hectopascal>(3.95639e-2),
-            density: MassDensity::new::<kilogram_per_cubic_meter>(8.61600e-4)..MassDensity::new::<kilogram_per_cubic_meter>(6.42105e-5),
+            altitude: GeopotentialAltitude::new::<kilometer>(51.)
+                ..GeopotentialAltitude::new::<kilometer>(71.),
+            pressure: Pressure::new::<hectopascal>(6.69384e-1)
+                ..Pressure::new::<hectopascal>(3.95639e-2),
+            density: MassDensity::new::<kilogram_per_cubic_meter>(8.61600e-4)
+                ..MassDensity::new::<kilogram_per_cubic_meter>(6.42105e-5),
             base_temperature: ThermodynamicTemperature::new::<kelvin>(270.650),
             lapse_rate: Some(
                 TemperatureInterval::new::<diff_kelvin>(-2.8) / Length::new::<kilometer>(1.),
             ),
         },
         Layer {
-            altitude: GeopotentialAltitude::new::<kilometer>(71.)..GeopotentialAltitude::new::<kilometer>(80.),
-            pressure: Pressure::new::<hectopascal>(3.95639e-2)..Pressure::new::<hectopascal>(8.86272e-3),
-            density: MassDensity::new::<kilogram_per_cubic_meter>(6.42105e-5)..MassDensity::new::<kilogram_per_cubic_meter>(1.57004e-5),
+            altitude: GeopotentialAltitude::new::<kilometer>(71.)
+                ..GeopotentialAltitude::new::<kilometer>(80.),
+            pressure: Pressure::new::<hectopascal>(3.95639e-2)
+                ..Pressure::new::<hectopascal>(8.86272e-3),
+            density: MassDensity::new::<kilogram_per_cubic_meter>(6.42105e-5)
+                ..MassDensity::new::<kilogram_per_cubic_meter>(1.57004e-5),
             base_temperature: ThermodynamicTemperature::new::<kelvin>(214.650),
             lapse_rate: Some(
                 TemperatureInterval::new::<diff_kelvin>(-2.0) / Length::new::<kilometer>(1.),

@@ -44,7 +44,7 @@ pub type FrequencyByArea = <Frequency as std::ops::Div<Area>>::Output;
 // }
 
 /// Altitude above mean sea level
-/// 
+///
 /// This is the ruler-measured value for altitude. Calculations for standard
 /// atmosphere may require conversion into a [`GeopotentialAltitude`].
 #[derive(Clone, Copy, Debug, PartialEq, PartialOrd)]
@@ -109,7 +109,7 @@ impl std::ops::Div<GeometricAltitude> for Length {
 }
 
 /// Height above mean sea level corrected for variations variations in gravity
-/// 
+///
 /// Most standard calculations are based on geopotential altitudes. To obtain
 /// actual linear distances, convert to a [`GeometricAltitude`] prior to
 /// use as a raw length.
@@ -241,13 +241,19 @@ impl std::ops::Div<GeopotentialAltitude> for Length {
 
 impl From<GeometricAltitude> for GeopotentialAltitude {
     fn from(alt: GeometricAltitude) -> Self {
-        Self::interpret(constants::earth_radius() * alt.remove_context() / (constants::earth_radius() + alt.remove_context()))
+        Self::interpret(
+            constants::earth_radius() * alt.remove_context()
+                / (constants::earth_radius() + alt.remove_context()),
+        )
     }
 }
 
 impl From<GeopotentialAltitude> for GeometricAltitude {
     fn from(alt: GeopotentialAltitude) -> Self {
-        Self::interpret(constants::earth_radius() * alt.remove_context() / (constants::earth_radius() - alt.remove_context()))
+        Self::interpret(
+            constants::earth_radius() * alt.remove_context()
+                / (constants::earth_radius() - alt.remove_context()),
+        )
     }
 }
 
@@ -314,13 +320,13 @@ impl std::ops::Div<PressureAltitude> for Length {
 }
 
 /// Altimeter setting
-/// 
+///
 /// An altimeter set to the QNH value will display
 /// the current geopotential altitude above mean sea level.
-/// 
+///
 /// An altimeter set to standard pressure (29.92 inHg / 1013.25 hPa) will
 /// display the current pressure altitude.
-/// 
+///
 /// An altimeter set to the QFE value for an airfield will display the
 /// current geopotential altitude above the airfield.
 #[derive(Clone, Copy, Debug, PartialEq, PartialOrd)]

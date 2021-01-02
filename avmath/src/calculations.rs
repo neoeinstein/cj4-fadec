@@ -1,5 +1,5 @@
 //! Calculations related to the ICAO Standard Atmosphere
-//! 
+//!
 //! As described in the ICAO document 7488: _Manual of the ICAO Standard
 //! Atmosphere_. Calculations requiring information about atmospheric layers
 //! are valid for geopotential altitudes from 5 km below to
@@ -32,9 +32,6 @@ pub fn ideal_pressure(
     rho * r * t
 }
 
-mod isa {
-}
-
 /// Computes the standard temperature at a particular altitude from attributes
 /// of the layer
 pub fn standard_temperature_in_layer(
@@ -46,7 +43,7 @@ pub fn standard_temperature_in_layer(
     base_temperature + lapse_rate * (altitude - layer_base)
 }
 
-/// Computes the standard temperature 
+/// Computes the standard temperature
 pub fn standard_temperature(altitude: GeopotentialAltitude) -> Option<ThermodynamicTemperature> {
     let layer = Layer::find_by_altitude(altitude)?;
     Some(standard_temperature_in_layer(
@@ -79,7 +76,8 @@ fn standard_pressure_no_lapse(
 ) -> Pressure {
     let layer_height = altitude - layer_base;
     let effective_lapse_rate: InvLapseRate = layer_height / layer_temperature;
-    let pressure_exp = ((-constants::standard_gravity_msl_over_Rd()) * effective_lapse_rate).get::<ratio>();
+    let pressure_exp =
+        ((-constants::standard_gravity_msl_over_Rd()) * effective_lapse_rate).get::<ratio>();
     base_pressure * pressure_exp.exp()
 }
 
@@ -105,7 +103,10 @@ pub fn standard_pressure(altitude: GeopotentialAltitude) -> Option<Pressure> {
 }
 
 /// Density of dry air at a given temperature and pressure
-pub fn standard_density_dry_air(pressure: Pressure, temperature: ThermodynamicTemperature) -> MassDensity {
+pub fn standard_density_dry_air(
+    pressure: Pressure,
+    temperature: ThermodynamicTemperature,
+) -> MassDensity {
     pressure / (constants::Rd() * temperature)
 }
 
@@ -193,10 +194,10 @@ pub fn speed_of_sound(temperature: ThermodynamicTemperature) -> Velocity {
 
 /// Calculates the saturation pressure of water vapor at a given
 /// thermodynamic temperature
-/// 
+///
 /// For a faster approximation that should be valid within common
 /// atmospheric conditions, see [`saturation_vapor_pressure_fast`].
-/// 
+///
 /// Based on the formula from https://wahiduddin.net/calc/density_altitude.htm
 pub fn saturation_vapor_pressure_wobus(temperature: ThermodynamicTemperature) -> Pressure {
     const ESO: f64 = 6.1078;
@@ -233,7 +234,7 @@ pub fn saturation_vapor_pressure_wobus(temperature: ThermodynamicTemperature) ->
 
 /// Calculates the saturation pressure of water vapor at a given
 /// thermodynamic temperature using an approximation
-/// 
+///
 /// This formula is generally within 1mb of the Wobus formula up
 /// to about 70 °C. Beyond that limit, the error increases.
 pub fn saturation_vapor_pressure_fast(temperature: ThermodynamicTemperature) -> Pressure {
@@ -256,7 +257,6 @@ pub fn relative_humidity(ambient_pressure: Pressure, vapor_pressure: Pressure) -
     vapor_pressure / ambient_pressure
 }
 
-
 fn moist_air_density(
     ambient_pressure: Pressure,
     vapor_pressure: Pressure,
@@ -276,10 +276,7 @@ fn density_altitude(
 ) -> DensityAltitude {
     let vapor_pressure = saturation_vapor_pressure_fast(dew_point);
     let relative_humidity = relative_humidity(ambient_pressure, vapor_pressure);
-    let virtual_temperature = dbg!(virtual_temperature(
-        relative_humidity,
-        temperature
-    ));
+    let virtual_temperature = dbg!(virtual_temperature(relative_humidity, temperature));
 
     // let air_density = dbg!(moist_air_density(ambient_pressure, vapor_pressure, temperature));
 
@@ -303,7 +300,8 @@ fn density_altitude(
 
         let temperature_height: Length = dbg!(layer.base_temperature / lapse_rate);
 
-        let pressure_exp_m1 = dbg!(lapse_rate * -constants::Rd_over_standard_gravity_msl()).get::<ratio>();
+        let pressure_exp_m1 =
+            dbg!(lapse_rate * -constants::Rd_over_standard_gravity_msl()).get::<ratio>();
         let temp_ratio = dbg!(
             1.0_f64
                 - relative_pressure_temperature
@@ -323,7 +321,8 @@ fn density_altitude(
 
         let pressure_exp_m1 = relative_pressure_temperature.get::<ratio>();
         let temp_ratio = pressure_exp_m1.ln();
-        let height_gradient: Length = layer.base_temperature * -constants::Rd_over_standard_gravity_msl();
+        let height_gradient: Length =
+            layer.base_temperature * -constants::Rd_over_standard_gravity_msl();
         let layer_height: Length = height_gradient * temp_ratio;
         DensityAltitude::interpret(layer_height + layer.altitude.start.remove_context())
     }
