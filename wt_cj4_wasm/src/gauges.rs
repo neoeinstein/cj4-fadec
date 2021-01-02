@@ -3,8 +3,9 @@ use simconnect_sys::{ffi::HResult, NotificationGroup, EventType};
 use std::sync::Arc;
 use std::cell::Cell;
 use crate::interop;
-use uom::si::{f64::Time, time::second};
-use wt_cj4::{control_params::{ThrottleAxis, ThrottleMode, ThrottlePercent}, engines::{EngineData, EngineNumber}, fadec::FadecController};
+use uom::fmt::DisplayStyle::Abbreviation;
+use uom::si::{f64::Time, time::second, ratio::ratio};
+use wt_cj4::{control_params::{ThrottleAxis, ThrottleMode, ThrottlePercent}, engines::{EngineData, EngineNumber}, FadecController};
 
 #[derive(Debug)]
 pub struct FdGauge {
@@ -52,31 +53,37 @@ impl FdGauge {
     }
 
     pub fn update(&mut self, delta_t: Time) {
-        let mut intermediate = self.last_throttle_axis.get().map(ThrottlePercent::from);
-        println!("Most recent throttle values: {:?}", intermediate);
-        for engine in EngineNumber::iter() {
+        let last_throttle_axis = self.last_throttle_axis.get();
+        println!("Most recent throttle values: {:?}", last_throttle_axis);
+
+        let intermediate = last_throttle_axis.map(|engine, axis| {
             println!("Processing {:?}", engine);
-            let axis = self.last_throttle_axis.get()[engine];
             let mode = select_throttle_mode(axis);
-            println!("{:?}: Updating mode to {:?}", engine, mode);
             interop::Throttle::set_mode(engine, mode);
+            println!("{:?}: Updated mode to {:?}", engine, mode);
 
             let engine_thrust = interop::Thrust::read_by_index(engine);
             let mach_number = interop::AirspeedMach::read();
             let ambient_density = interop::AmbientDensity::read();
             let pressure_altitude = interop::Altitude::read();
-            let (_, position) = self.controller[engine].get_desired_throttle(ThrottlePercent::from(axis), engine_thrust, mach_number, ambient_density, pressure_altitude, delta_t);
-            intermediate[engine] = position;
+            let current_throttle = axis.to_ratio();
+
+            let (_, new_throttle) = self.controller[engine].get_desired_throttle(current_throttle, mode, engine_thrust, mach_number, ambient_density, pressure_altitude, delta_t);
+            println!("{:?}: Current throttle: {:.4}, New throttle: {:+.4}", engine, current_throttle.into_format_args(ratio, Abbreviation), new_throttle.to_ratio().into_format_args(ratio, Abbreviation));
             
             let visible_position = calculate_throttle_position(mode, axis);
             println!("{:?}: Updating throttle to {:?}", engine, visible_position);
             interop::Throttle::set_position(engine, visible_position);
-        }
+
+            new_throttle
+        });
 
         let update = interop::EngineDataControl {
             throttle_engine1: intermediate[EngineNumber::Engine1],
             throttle_engine2: intermediate[EngineNumber::Engine2],
         };
+
+        println!("Update prepared: {:?}", update);
 
         if let Err(err) = self.simconnect.update_user_data(&update) {
             println!("Error updating simconnect user data: {:?}", err);

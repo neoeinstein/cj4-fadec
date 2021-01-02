@@ -1,4 +1,9 @@
+//! Low-level FFI SimConnect APIs
+
+#![allow(dead_code, missing_docs)]
+
 use std::ffi::c_void;
+use std::fmt;
 use std::os::raw::c_char;
 use num_derive::{FromPrimitive, ToPrimitive};
 use num_traits::{FromPrimitive, ToPrimitive};
@@ -248,22 +253,52 @@ impl Default for WindowHandle {
     }
 }
 
+/// Integer result value returned by most SimConnect APIs
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 #[repr(transparent)]
 #[must_use]
 pub struct HResult(i32);
 
 impl HResult {
+    /// Success
     pub const S_OK: Self = Self(0);
+
+    /// A generic failure
     pub const E_FAIL: Self = Self(0x80004005_u32 as i32);
 
+    /// Indicates whether or not the operation was successful
     #[inline]
     pub fn is_success(self) -> bool {
         self.0 >= 0
     }
 
+    /// Gets the raw HRESULT code
     #[inline]
     pub fn raw(self) -> i32 {
         self.0
+    }
+
+    /// Converts an HResult value into a Result
+    #[inline]
+    pub fn to_result(self) -> Result<(), Self> {
+        if self.is_success() {
+            Ok(())
+        } else {
+            Err(self)
+        }
+    }
+}
+
+impl fmt::Display for HResult {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        let info = if *self == Self::S_OK {
+            " (S_OK)"
+        } else if *self == Self::E_FAIL {
+            " (E_FAIL)"
+        } else {
+            ""
+        };
+
+        write!(f, "{:08x}{}", self.0, info)
     }
 }

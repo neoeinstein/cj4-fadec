@@ -2,12 +2,14 @@ use crate::ffi;
 use std::borrow::Cow;
 use std::ffi::{CStr, CString};
 
+/// A handle to the SimConnect API
 #[derive(Debug)]
 pub struct SimConnect {
     raw: ffi::SimConnectHandle,
 }
 
 impl SimConnect {
+    /// Creates a new connection to the SimConnect service
     pub fn new(name: &str) -> Result<Self, ffi::HResult> {
         let n = if let Ok(value) = CStr::from_bytes_with_nul(name.as_bytes()) {
             Cow::Borrowed(value)
@@ -34,6 +36,10 @@ impl SimConnect {
         }
     }
 
+    /// Registers a notification group with the SimConnect API
+    /// 
+    /// Defines the types of messages and groups that SimConnect
+    /// should enqueue messages for.
     pub fn register_notification_group_enum<G: NotificationGroup>(&self) -> Result<(), ffi::HResult> {
         for def in G::group_definitions() {
             if let Err(err) = self.register_notification_group(def) {
@@ -44,7 +50,7 @@ impl SimConnect {
         Ok(())
     }
 
-    pub fn register_notification_group<G: NotificationGroup>(&self, group_def: &NotificationGroupDefinition<G>) -> Result<(), ffi::HResult> {
+    fn register_notification_group<G: NotificationGroup>(&self, group_def: &NotificationGroupDefinition<G>) -> Result<(), ffi::HResult> {
         for def in G::EventType::event_definitions() {
             let n = if let Ok(value) = CStr::from_bytes_with_nul(def.name.as_bytes()) {
                 Cow::Borrowed(value)
@@ -75,6 +81,10 @@ impl SimConnect {
         Ok(())
     }
 
+    /// Registers a client data definition with the SimConnect API
+    /// 
+    /// Used to define the shape of data that will be sent to the
+    /// SimConnect API from the client.
     pub fn register_data_definition<G: DataDefinitionGroup>(&self) -> Result<(), ffi::HResult> {
         for def in G::data_definitions() {
             let n = if let Ok(value) = CStr::from_bytes_with_nul(def.name.as_bytes()) {
@@ -100,6 +110,8 @@ impl SimConnect {
         Ok(())
     }
 
+    /// Updates the user's object with certain attributes as previously
+    /// defined by a client data definition
     pub fn update_user_data<D: DataDefinitionGroup>(&self, data: &D) -> Result<(), ffi::HResult> {
         unsafe {
             let result = ffi::SimConnect_SetDataOnSimObject(self.raw, D::group_id(), ffi::RawObjectId::USER, ffi::DataSetFlag::Default.to_ffi(), 0, std::mem::size_of::<D>() as u32, data as *const D as *const std::ffi::c_void);
@@ -111,7 +123,11 @@ impl SimConnect {
         Ok(())
     }
 
+    /// Requests a next message from the SimConnect API
     pub fn dispatch<D: std::fmt::Debug + SimConnectDispatcher>(&self, dispatcher: &mut D) {
+        // The `CallDispatch` API is currently broken. In the meantime, the
+        // `GetNextDispatch` API is being used as an alternative.
+
         //println!("Calling into dispatcher, inner context address: {:?}", context as *const C);
 
         //println!("Outer context: {:?}", raw_context);
@@ -249,9 +265,13 @@ unsafe fn handle_dispatch_inner<D: std::fmt::Debug + SimConnectDispatcher>(heade
     Loop::Continue
 }
 
+/// A handler of messages dispatched from SimConnect
 #[allow(unused_variables)]
 pub trait SimConnectDispatcher {
+    /// Receives the initial message sent on opening a connection
     fn handle_open(&self, event: &ffi::ReceiveOpen) {}
+
+    /// Receives an event with new data
     fn handle_event(&self, event: &ffi::ReceiveEvent) {}
 }
 
@@ -266,43 +286,88 @@ impl Drop for SimConnect {
     }
 }
 
+/// A client data definition
+#[derive(Debug)]
 pub struct DataDefinition {
+    /// The name of the variable to be updated
     pub name: &'static str,
+    
+    /// The name of the unit type for the variable
     pub unit: &'static str,
+
+    /// The data type used for passing the data value
     pub datum_type: ffi::DataType,
 }
 
+/// A group of data definitions that can be registered simultaneously
 pub trait DataDefinitionGroup: Sized {
+    /// An iterator of data definitions
     type DataDefsIter: IntoIterator<Item = &'static DataDefinition>;
+    
+    /// The raw FFI group ID assigned by the client
     fn group_id() -> ffi::RawDataDefinitionId;
+
+    /// Iterates through the data definitions
     fn data_definitions() -> Self::DataDefsIter;
+
+    /// Registers the data definitions with a SimConnect instance
     fn register(simconnect: &SimConnect) -> Result<(), ffi::HResult> {
         simconnect.register_data_definition::<Self>()
     }
 }
 
+/// A notification group definition
+#[derive(Debug)]
 pub struct NotificationGroupDefinition<Group> {
+    /// The group identifier
     pub group: Group,
+
+    /// The priority assigned to events in this notification group
     pub priority: ffi::NotificationGroupPriority,
 }
 
+/// A set of notification groups that can be registered simultaneously
 pub trait NotificationGroup: Sized + 'static {
+    /// An iterator of notification groups
     type GroupsIter: IntoIterator<Item = &'static NotificationGroupDefinition<Self>>;
+    
+    /// The event type for identifying the different notifications
     type EventType: EventType;
+
+    /// Gets the raw notification group ID for this group
     fn to_ffi(&self) -> ffi::RawNotificationGroupId;
+
+    /// Attempts to convert a raw notification group ID to a known group ID
     fn from_ffi(raw: ffi::RawNotificationGroupId) -> Option<Self>;
+
+    /// Iterates through the notification groups
     fn group_definitions() -> Self::GroupsIter;
 }
 
+/// An event definition
+#[derive(Debug)]
 pub struct EventDefinition<EventType> {
+    /// The event identifier
     pub event: EventType,
+
+    /// The name of the event being requested
     pub name: &'static str,
+
+    /// Whether or not the event is maskable
     pub is_maskable: bool
 }
 
+/// An event type
 pub trait EventType: Sized + 'static {
+    /// An iterator of event definitions
     type EventsIter: IntoIterator<Item = &'static EventDefinition<Self>>;
+    
+    /// Gets the raw event ID for this event
     fn to_ffi(&self) -> ffi::RawEventId;
+
+    /// Attempts to convert a raw event ID to a known event ID
     fn from_ffi(raw: ffi::RawEventId) -> Option<Self>;
+
+    /// Iterates through the event definitions
     fn event_definitions() -> Self::EventsIter;
 }

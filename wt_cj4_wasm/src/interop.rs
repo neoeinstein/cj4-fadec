@@ -4,32 +4,31 @@ use uom::si::{
     force::poundal,
     length::foot,
     mass_density::slug_per_cubic_foot,
-    ratio::{percent, ratio},
+    ratio::ratio,
 };
 use num_derive::{ToPrimitive, FromPrimitive};
 use num_traits::{ToPrimitive, FromPrimitive};
 use wt_cj4::{control_params::{ThrottlePercent, ThrottleMode}, engines::EngineNumber};
 
-gauge_unit!(Percent: "Percent");
-gauge_unit!(Pounds: "Pounds");
-gauge_unit!(Feet: "Feet");
-gauge_unit!(FootPounds: "Foot pounds");
-gauge_unit!(Number: "Number");
-gauge_unit!(Mach: "Mach");
-gauge_unit!(SluggerSlugs: "Slug per cubic feet");
+gauge_unit!(Percent: "Percent"; "A percentage, expressed as a value between 0 and 100");
+gauge_unit!(Pounds: "Pounds"; "Weight measured in pounds or Force measured in poundals of force");
+gauge_unit!(Feet: "Feet"; "Distance measured in feet");
+gauge_unit!(Number: "Number"; "A dimensionless value");
+gauge_unit!(Mach: "Mach"; "Velocity measures as a ratio of the speed of sound");
+gauge_unit!(SluggerSlugs: "Slug per cubic feet"; "Pressure measured in slugs per cubic foot");
 
-indexed_aircraft_variable!(Throttle(Percent): "GENERAL ENG THROTTLE LEVER POSITION");
-indexed_aircraft_variable!(Thrust(Pounds): "TURB ENG JET THRUST");
-unindexed_aircraft_variable!(AirspeedMach(Mach): "AIRSPEED MACH");
-unindexed_aircraft_variable!(Altitude(Feet): "PRESSURE ALTITUDE");
-unindexed_aircraft_variable!(AmbientDensity(SluggerSlugs): "AMBIENT DENSITY");
-unindexed_aircraft_variable!(OnGround(Number): "SIM ON GROUND");
+indexed_aircraft_variable!(Throttle(Percent): "GENERAL ENG THROTTLE LEVER POSITION"; "Engine throttle lever position");
+indexed_aircraft_variable!(Thrust(Pounds): "TURB ENG JET THRUST"; "Turbine engine jet thrust");
+unindexed_aircraft_variable!(AirspeedMach(Mach): "AIRSPEED MACH"; "Airspeed as Mach number");
+unindexed_aircraft_variable!(Altitude(Feet): "PRESSURE ALTITUDE"; "Pressure altitude");
+unindexed_aircraft_variable!(AmbientDensity(SluggerSlugs): "AMBIENT DENSITY"; "Ambient air density");
+unindexed_aircraft_variable!(OnGround(Number): "SIM ON GROUND"; "Whether the user's aircraft is on the ground");
 
-named_variable!(Throttle1Mode(ThrottleMode): "THROTTLE1_MODE");
-named_variable!(Throttle2Mode(ThrottleMode): "THROTTLE2_MODE");
+named_variable!(Throttle1Mode(ThrottleMode): "THROTTLE1_MODE"; "The FADEC mode of engine 1");
+named_variable!(Throttle2Mode(ThrottleMode): "THROTTLE2_MODE"; "The FADEC mode of engine 2");
 
-named_variable!(Throttle1Position(ThrottlePercent): "Throttle1_Pos");
-named_variable!(Throttle2Position(ThrottlePercent): "Throttle2_Pos");
+named_variable!(Throttle1Position(ThrottlePercent): "Throttle1_Pos"; "The visual position of the engine 1 throttle lever");
+named_variable!(Throttle2Position(ThrottlePercent): "Throttle2_Pos"; "The visual position of the engine 2 throttle lever");
 
 fn engine_number_to_sim_index(engine: EngineNumber) -> u32 {
     match engine {
@@ -39,22 +38,22 @@ fn engine_number_to_sim_index(engine: EngineNumber) -> u32 {
 }
 
 impl Throttle {
-    pub fn read_by_index(engine: EngineNumber) -> Ratio {
-        let index = engine_number_to_sim_index(engine);
-        Ratio::new::<percent>(Self::read_raw_by_index(index))
-    }
+    // pub fn read_by_index(engine: EngineNumber) -> Ratio {
+    //     let index = engine_number_to_sim_index(engine);
+    //     Ratio::new::<percent>(Self::read_raw_by_index(index))
+    // }
 
     pub fn set_position(engine: EngineNumber, pct: ThrottlePercent) {
         match engine {
-            EngineNumber::Engine1 => Throttle1Position::set(pct),
-            EngineNumber::Engine2 => Throttle2Position::set(pct),
+            EngineNumber::Engine1 => Throttle1Position::set_raw(pct),
+            EngineNumber::Engine2 => Throttle2Position::set_raw(pct),
         }
     }
 
     pub fn set_mode(engine: EngineNumber, mode: ThrottleMode) {
         match engine {
-            EngineNumber::Engine1 => Throttle1Mode::set(mode),
-            EngineNumber::Engine2 => Throttle2Mode::set(mode),
+            EngineNumber::Engine1 => Throttle1Mode::set_raw(mode),
+            EngineNumber::Engine2 => Throttle2Mode::set_raw(mode),
         }
     }
 }

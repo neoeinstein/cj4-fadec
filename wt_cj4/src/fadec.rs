@@ -1,5 +1,8 @@
+//! The CJ4 FADEC controller module
+
 use crate::control_params::{ThrottleMode, ThrottlePercent, ThrottleAxis, ThrustValue};
 use uom::fmt::DisplayStyle::Abbreviation;
+use uom::num_traits::{clamp, clamp_min};
 use uom::si::{
     f64::*,
     acceleration::foot_per_second_squared,
@@ -13,42 +16,44 @@ use uom::si::{
     volume::cubic_foot,
 };
 use avmath::PressureAltitude;
-use wt_systems::{PidConfiguration, PidState};
+use wt_systems::{PidConfiguration, PidController};
 
+/// The CJ4 FADEC controller
 #[derive(Debug)]
 pub struct FadecController {
-    pid_config: PidConfiguration<Force, Ratio>,
-    pid_state: PidState<Force>,
-    throttle_axis: ThrottleAxis,
-    throttle_mode: ThrottleMode,
+    climb_pid_config: PidConfiguration<Force>,
+    pid_state: PidController<Force>,
+    throttle_selected: Ratio,
     enabled: bool,
 }
 
 impl Default for FadecController {
     fn default() -> Self {
         Self {
-            pid_config: ClimbFadecPidConfiguration::default(),
-            pid_state: PidState::default(),
-            throttle_axis: ThrottleAxis::MIN,
-            throttle_mode: ThrottleMode::Undefined,
+            climb_pid_config: ClimbFadecPidConfiguration::default(),
+            pid_state: PidController::default(),
+            throttle_selected: Ratio::new::<ratio>(0.),
             enabled: true,
         }
     }
 }
 
 impl FadecController {
-    pub fn get_desired_throttle(&mut self, current_throttle: ThrottlePercent, engine_thrust: Force, mach_number: Ratio, ambient_density: MassDensity, altitude: PressureAltitude, delta_t: Time) -> (ThrustValue, ThrottlePercent) {
-        let normalized_throttle = self.throttle_axis.to_ratio();
-
+    /// Steps the FADEC controller to command the virtual throttle lever
+    /// position changes required to obtain the desired thrust based on the
+    /// current throttle mode
+    pub fn get_desired_throttle(&mut self, current_throttle: Ratio, throttle_mode: ThrottleMode, engine_thrust: Force, mach_number: Ratio, ambient_density: MassDensity, pressure_altitude: PressureAltitude, delta_t: Time) -> (ThrustValue, ThrottlePercent) {
         if !self.enabled {
-            let throttle_exp = Ratio::new::<ratio>(normalized_throttle.value.powf(3.5));
-            return (ThrustValue::from_ratio(throttle_exp), ThrottlePercent::from_ratio(normalized_throttle))
+            self.throttle_selected = current_throttle;
+            let throttle_exp = Ratio::new::<ratio>(self.throttle_selected.get::<ratio>().powf(3.5));
+            return (ThrustValue::from_ratio(throttle_exp), ThrottlePercent::from_ratio(self.throttle_selected))
         }
 
-        let thrust_efficiency = Ratio::new::<ratio>(0.93);
+        let thrust_efficiency = Ratio::new::<percent>(93.0);
 
-        match self.throttle_mode {
+        match throttle_mode {
             ThrottleMode::Takeoff => {
+                //self.pid_state.reset();
                 (ThrustValue::MAX, ThrottlePercent::MAX)
             }
             ThrottleMode::Climb => {
@@ -56,44 +61,70 @@ impl FadecController {
                 let max_density_thrust = get_max_density_thrust(ambient_density);
                 let max_effective_thrust = max_density_thrust * thrust_efficiency;
 
-                println!("Raw thrust: {:.3}, Airspeed: {:.3} M, Gross thrust: {:.3}, Ambient density: {:.4}, Max density thrust: {:.3}, altitude: {:.0}", engine_thrust.into_format_args(poundal, Abbreviation), mach_number.into_format_args(ratio, Abbreviation), gross_thrust.into_format_args(poundal, Abbreviation), ambient_density.into_format_args(slug_per_cubic_foot, Abbreviation), max_density_thrust.into_format_args(poundal, Abbreviation), altitude.remove_context().into_format_args(foot, Abbreviation));
+                println!("Raw thrust: {:.3}, Airspeed: {:.3} M, Gross thrust: {:.3}, Ambient density: {:.4}, Max density thrust: {:.3}, altitude: {:.0}", engine_thrust.into_format_args(poundal, Abbreviation), mach_number.into_format_args(ratio, Abbreviation), gross_thrust.into_format_args(poundal, Abbreviation), ambient_density.into_format_args(slug_per_cubic_foot, Abbreviation), max_density_thrust.into_format_args(poundal, Abbreviation), pressure_altitude.remove_context().into_format_args(foot, Abbreviation));
 
-                let low_altitude_limit = PressureAltitude::new::<foot>(7000.);
-                let altitude_reduction: Length = low_altitude_limit - altitude;
-                let low_altitude_thrust: Force =
-                    (altitude_reduction * MassRate::new::<pound_per_second>(1.) / Time::new::<second>(24.))
-                        .max(Force::new::<poundal>(0.));
-                let low_thrust_target: Force = Force::new::<poundal>(2050.) + low_altitude_thrust;
+                let base_thrust = Force::new::<poundal>(2050.);
+                let low_altitude_thrust_target: Force = base_thrust + calculate_low_altitude_thrust_gain(pressure_altitude);
 
-                let target_thrust: Force = if max_effective_thrust < low_thrust_target {
-                    let high_altitude_limit = PressureAltitude::new::<foot>(35000.);
-                    let altitude_reduction: Length = altitude - high_altitude_limit;
-                    let high_altitude_thrust_reduction: Force =
-                        (altitude_reduction * MassRate::new::<pound_per_second>(1.) / Time::new::<second>(64.))
-                            .max(Force::new::<poundal>(0.))
-                            .min(Force::new::<poundal>(110.));
+                println!("Low altitude thrust target: {:.3}", low_altitude_thrust_target.into_format_args(poundal, Abbreviation));
 
-                    max_effective_thrust - high_altitude_thrust_reduction
+                let thrust_target: Force = if max_effective_thrust < low_altitude_thrust_target {
+                    let high_altitude_thrust_loss = calculate_high_altitude_thrust_loss(pressure_altitude);
+                    max_effective_thrust - high_altitude_thrust_loss
                 } else {
-                    low_thrust_target
+                    low_altitude_thrust_target
                 };
 
-                let output = self.pid_state.tick(target_thrust, &self.pid_config, gross_thrust, delta_t);
+                let output = self.pid_state.step(thrust_target, &self.climb_pid_config, gross_thrust, delta_t);
 
-                let next_throttle = current_throttle.to_ratio() + output;
-                println!("Target thrust: {:.4} (error: {:+.4}); adjusting throttle {:+.4} to {:.4} of maximum", target_thrust.into_format_args(poundal, Abbreviation), self.pid_state.prior_error().into_format_args(poundal, Abbreviation), output.into_format_args(ratio, Abbreviation), next_throttle.into_format_args(ratio, Abbreviation));
+                self.throttle_selected += output;
+                println!("Thrust target: {:.4} (error: {:+.4}); commanding change of {:+.4} to {:.4} of maximum", thrust_target.into_format_args(poundal, Abbreviation), self.pid_state.prior_error().into_format_args(poundal, Abbreviation), output.into_format_args(ratio, Abbreviation), self.throttle_selected.into_format_args(ratio, Abbreviation));
 
-                (ThrustValue::from_force(target_thrust), ThrottlePercent::from_ratio(next_throttle))
+                (ThrustValue::from_force(thrust_target), ThrottlePercent::from_ratio(self.throttle_selected))
             }
             ThrottleMode::Cruise | ThrottleMode::Undefined => {
-                let cruise_normalized_throttle = self.throttle_axis.normalize_cruise();
-                let cruise_throttle_exp = cruise_normalized_throttle;
-                let effective_thrust = cruise_throttle_exp * thrust_efficiency;
+                self.throttle_selected = current_throttle;
+                let cruise_normalized_throttle = ThrottleAxis::from_ratio(current_throttle).normalize_cruise();
+                let effective_thrust = cruise_normalized_throttle * thrust_efficiency;
+
+                //self.pid_state.reset();
+                println!("Current throttle: {:.4} ({:.4} of cruise; {:.4} effective); Commanding engine to {:.4} of maximum", current_throttle.into_format_args(ratio, Abbreviation), cruise_normalized_throttle.into_format_args(ratio, Abbreviation), effective_thrust.into_format_args(ratio, Abbreviation), effective_thrust.into_format_args(ratio, Abbreviation));
 
                 (ThrustValue::from_ratio(effective_thrust), ThrottlePercent::from_ratio(effective_thrust))
             }
         }
     }
+}
+
+fn calculate_low_altitude_thrust_gain(pressure_altitude: PressureAltitude) -> Force {
+    let minimum_thrust_gain = Force::new::<poundal>(0.);
+    let thrust_gain_rate = MassRate::new::<pound_per_second>(1.) / Time::new::<second>(24.);
+    let low_altitude_ceiling = PressureAltitude::new::<foot>(7000.);
+
+    if pressure_altitude > low_altitude_ceiling {
+        return minimum_thrust_gain;
+    }
+
+    let altitude_reduction: Length = low_altitude_ceiling - pressure_altitude;
+    let low_altitude_thrust_gain: Force = altitude_reduction * thrust_gain_rate;
+
+    clamp_min(low_altitude_thrust_gain, minimum_thrust_gain)
+}
+
+fn calculate_high_altitude_thrust_loss(pressure_altitude: PressureAltitude) -> Force {
+    let minimum_thrust_loss = Force::new::<poundal>(0.);
+    let maximum_thrust_loss = Force::new::<poundal>(110.);
+    let thrust_loss_rate = MassRate::new::<pound_per_second>(1.) / Time::new::<second>(64.);
+    let high_altitude_floor = PressureAltitude::new::<foot>(35000.);
+
+    if pressure_altitude < high_altitude_floor {
+        return minimum_thrust_loss;
+    }
+
+    let altitude_reduction: Length = pressure_altitude - high_altitude_floor;
+    let high_altitude_thrust_loss: Force = altitude_reduction * thrust_loss_rate;
+
+    clamp(high_altitude_thrust_loss, minimum_thrust_loss, maximum_thrust_loss)
 }
 
 fn convert_to_gross_thrust(thrust_in: Force, mach_in: Ratio) -> Force {
@@ -110,7 +141,7 @@ struct ClimbFadecPidConfiguration;
 
 impl ClimbFadecPidConfiguration {
     #[inline]
-    fn default() -> PidConfiguration<Force, Ratio> {
+    fn default() -> PidConfiguration<Force> {
         PidConfiguration {
             gain_proportion: Ratio::new::<percent>(1.2) / Force::new::<poundal>(1_000.),
             gain_integral: Ratio::new::<percent>(0.0001) / Momentum::new::<pound_foot_per_second>(1.),
@@ -125,9 +156,7 @@ impl ClimbFadecPidConfiguration {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use uom::si::{
-        mass_density::slug_per_cubic_foot,
-    };
+    use uom::si::mass_density::slug_per_cubic_foot;
     use wt_systems::testing;
 
     #[test]
@@ -152,10 +181,10 @@ mod tests {
         testing::assert_equal_in_significant_figures(expected, actual, 12)
     }
 
-    testing::pid::tick_tests! {
+    testing::pid::step_tests! {
         name: basic_test,
         config: ClimbFadecPidConfiguration::default(),
-        initial: PidState::default(),
+        initial: PidController::default(),
         steps: [
             {
                 inputs: (Force::new::<poundal>(200.), Time::new::<second>(0.0166666666666666)),
@@ -204,7 +233,7 @@ mod tests {
         ],
         tolerances: {
             output: Ratio::new::<percent>(0.001),
-            integral: Momentum::new::<pound_foot_per_second>(0.00001),
+            retained_error: Momentum::new::<pound_foot_per_second>(0.00001),
         },
     }
 }
