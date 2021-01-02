@@ -76,19 +76,26 @@ impl FadecController {
                 println!("Raw thrust: {:.3}, Airspeed: {:.3} M, Gross thrust: {:.3}, Ambient density: {:.4}, Max density thrust: {:.3}, altitude: {:.0}", engine_thrust.into_format_args(poundal, Abbreviation), mach_number.into_format_args(ratio, Abbreviation), gross_thrust.into_format_args(poundal, Abbreviation), ambient_density.into_format_args(slug_per_cubic_foot, Abbreviation), max_density_thrust.into_format_args(poundal, Abbreviation), pressure_altitude.remove_context().into_format_args(foot, Abbreviation));
 
                 let base_thrust = Force::new::<poundal>(2050.);
-                let low_altitude_thrust_target: Force =
-                    base_thrust + calculate_low_altitude_thrust_gain(pressure_altitude);
-
-                println!(
-                    "Low altitude thrust target: {:.3}",
-                    low_altitude_thrust_target.into_format_args(poundal, Abbreviation)
-                );
+                let low_altitude_thrust_gain = calculate_low_altitude_thrust_gain(pressure_altitude);
+                let low_altitude_thrust_target: Force = base_thrust + low_altitude_thrust_gain;
 
                 let thrust_target: Force = if max_effective_thrust < low_altitude_thrust_target {
                     let high_altitude_thrust_loss =
                         calculate_high_altitude_thrust_loss(pressure_altitude);
-                    max_effective_thrust - high_altitude_thrust_loss
+                    let high_altitude_thrust_target = max_effective_thrust - high_altitude_thrust_loss;
+
+                    println!(
+                        "High altitude thrust target: {:.3}",
+                        high_altitude_thrust_target.into_format_args(poundal, Abbreviation)
+                    );
+
+                    high_altitude_thrust_target
                 } else {
+                    println!(
+                        "Low altitude thrust target: {:.3}",
+                        low_altitude_thrust_target.into_format_args(poundal, Abbreviation)
+                    );
+    
                     low_altitude_thrust_target
                 };
 
