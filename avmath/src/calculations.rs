@@ -1,3 +1,11 @@
+//! Calculations related to the ICAO Standard Atmosphere
+//! 
+//! As described in the ICAO document 7488: _Manual of the ICAO Standard
+//! Atmosphere_. Calculations requiring information about atmospheric layers
+//! are valid for geopotential altitudes from 5 km below to
+//! 80 km above mean sea level (geometric altitudes: 4.996 km
+//! below to 81.020 km above)
+
 use crate::{
     atmosphere::Layer, constants, DensityAltitude, DynamicViscosity, FrequencyByArea,
     GeopotentialAltitude, InvLapseRate, KinematicViscosity, LapseRate, NumberDensity,
@@ -5,15 +13,16 @@ use crate::{
 };
 use uom::si::{
     f64::*,
-    mass_density::kilogram_per_cubic_meter,
     pressure::{millibar, pascal},
-    ratio::{percent, ratio},
+    ratio::ratio,
     temperature_interval::kelvin as diff_kelvin,
     thermal_conductivity::watt_per_meter_kelvin,
     thermodynamic_temperature::{degree_celsius as celsius, kelvin},
     time::second,
 };
 
+/// The ideal pressure of a gass given density, specific heat capacity,
+/// and ambient temperature
 #[inline]
 pub fn ideal_pressure(
     rho: MassDensity,
@@ -23,7 +32,12 @@ pub fn ideal_pressure(
     rho * r * t
 }
 
-pub fn standard_temperature_raw(
+mod isa {
+}
+
+/// Computes the standard temperature at a particular altitude from attributes
+/// of the layer
+pub fn standard_temperature_in_layer(
     altitude: GeopotentialAltitude,
     layer_base: GeopotentialAltitude,
     base_temperature: ThermodynamicTemperature,
@@ -32,11 +46,12 @@ pub fn standard_temperature_raw(
     base_temperature + lapse_rate * (altitude - layer_base)
 }
 
+/// Computes the standard temperature 
 pub fn standard_temperature(altitude: GeopotentialAltitude) -> Option<ThermodynamicTemperature> {
     let layer = Layer::find_by_altitude(altitude)?;
-    Some(standard_temperature_raw(
+    Some(standard_temperature_in_layer(
         altitude,
-        layer.base_altitude,
+        layer.altitude.start,
         layer.base_temperature,
         layer.lapse_rate.unwrap_or_default(),
     ))
@@ -52,7 +67,7 @@ fn standard_pressure_with_lapse(
     let layer_height = dbg!(altitude - layer_base);
     let height_to_zero_temp = dbg!(lapse_rate / base_temperature);
     let inner = dbg!(1.0_f64 + (height_to_zero_temp * layer_height).get::<ratio>());
-    let pressure_exp = ((-constants::g0_over_R()) / lapse_rate).get::<ratio>();
+    let pressure_exp = ((-constants::standard_gravity_msl_over_Rd()) / lapse_rate).get::<ratio>();
     base_pressure * inner.powf(pressure_exp)
 }
 
@@ -64,41 +79,44 @@ fn standard_pressure_no_lapse(
 ) -> Pressure {
     let layer_height = altitude - layer_base;
     let effective_lapse_rate: InvLapseRate = layer_height / layer_temperature;
-    let pressure_exp = ((-constants::g0_over_R()) * effective_lapse_rate).get::<ratio>();
+    let pressure_exp = ((-constants::standard_gravity_msl_over_Rd()) * effective_lapse_rate).get::<ratio>();
     base_pressure * pressure_exp.exp()
 }
 
+/// Computes the standard pressure for a given altitude
 pub fn standard_pressure(altitude: GeopotentialAltitude) -> Option<Pressure> {
     let layer = Layer::find_by_altitude(altitude)?;
     if let Some(lapse_rate) = layer.lapse_rate {
         Some(standard_pressure_with_lapse(
             altitude,
-            layer.base_altitude,
+            layer.altitude.start,
             layer.base_temperature,
             lapse_rate,
-            layer.base_pressure,
+            layer.pressure.start,
         ))
     } else {
         Some(standard_pressure_no_lapse(
             altitude,
-            layer.base_altitude,
+            layer.altitude.start,
             layer.base_temperature,
-            layer.base_pressure,
+            layer.pressure.start,
         ))
     }
 }
 
-/// Density of dry air
-pub fn standard_density(pressure: Pressure, temperature: ThermodynamicTemperature) -> MassDensity {
-    pressure / (constants::R() * temperature)
+/// Density of dry air at a given temperature and pressure
+pub fn standard_density_dry_air(pressure: Pressure, temperature: ThermodynamicTemperature) -> MassDensity {
+    pressure / (constants::Rd() * temperature)
 }
 
+/// Gravitational acceleration corrected for altitude
 pub fn gravitational_acceleration(altitude: GeopotentialAltitude) -> Acceleration {
     let inner = constants::earth_radius() / (constants::earth_radius() + altitude.remove_context());
     let square = inner * inner;
-    constants::g0() * square
+    constants::standard_gravity_msl() * square
 }
 
+/// Specific weight given density and gravitational acceleration
 pub fn specific_weight(
     density: MassDensity,
     gravitational_acceleration: Acceleration,
@@ -106,49 +124,53 @@ pub fn specific_weight(
     density * gravitational_acceleration
 }
 
+/// Density of elements within a volume given pressure and temperature
 pub fn number_density(pressure: Pressure, temperature: ThermodynamicTemperature) -> NumberDensity {
-    (constants::NA() * pressure) / (constants::RStar() * temperature)
+    (constants::avogadros_number() * pressure) / (constants::R() * temperature)
 }
 
-// mean particle speed in dry air
+/// Mean particle speed in dry air
 pub fn mean_particle_speed(temperature: ThermodynamicTemperature) -> Velocity {
-    (8. / std::f64::consts::PI * constants::R() * temperature).sqrt()
+    (8. / std::f64::consts::PI * constants::Rd() * temperature).sqrt()
 }
 
-// mean free path given temperature and pressure
+/// Mean free path given temperature and pressure
 pub fn mean_free_path_temp_pres(
     temperature: ThermodynamicTemperature,
     pressure: Pressure,
 ) -> Length {
-    constants::RStar()
+    constants::R()
         / (std::f64::consts::SQRT_2
             * std::f64::consts::PI
-            * constants::NA()
+            * constants::avogadros_number()
             * constants::SigmaSquared())
         * temperature
         / pressure
 }
 
+/// Mean distance between collisions of dry air given a number density
 pub fn mean_free_path_number_density(number_density: NumberDensity) -> Length {
     (std::f64::consts::SQRT_2 * std::f64::consts::PI * constants::SigmaSquared() * number_density)
         .recip()
 }
 
-/// In dry air
+/// Frequency of collisions between particles of dry air within an area
 pub fn collision_frequency(
     number_density: NumberDensity,
     temperature: ThermodynamicTemperature,
 ) -> FrequencyByArea {
-    0.944_541_e-18 * number_density * (constants::R() * temperature).sqrt()
+    0.944_541_e-18 * number_density * (constants::Rd() * temperature).sqrt()
 }
 
+/// Dynamic viscosity between two neighboring layers of dry air moving at
+/// different speeds given a temperature
 pub fn dynamic_viscosity(temperature: ThermodynamicTemperature) -> DynamicViscosity {
-    type PressureTimeTemp = <DynamicViscosity as std::ops::Mul<ThermodynamicTemperature>>::Output;
-    let bs = Pressure::new::<pascal>(constants::Bs) * Time::new::<second>(1.);
+    let bs = Pressure::new::<pascal>(constants::Bs()) * Time::new::<second>(1.);
     let t_3_2 = ThermodynamicTemperature::new::<kelvin>(temperature.get::<kelvin>().powf(1.5));
     (bs * t_3_2) / (constants::S() + temperature)
 }
 
+/// Kinematic viscosity given the dynamic viscosity and density
 pub fn kinematic_viscosity(
     dynamic_viscosity: DynamicViscosity,
     density: MassDensity,
@@ -156,35 +178,28 @@ pub fn kinematic_viscosity(
     dynamic_viscosity / density
 }
 
+/// Thermal conductivity of between two layers of dry air with a
+/// given temperature difference
 pub fn thermal_conductivity(temperature_difference: TemperatureInterval) -> ThermalConductivity {
     let raw_t = temperature_difference.get::<diff_kelvin>();
     let x = 245.4 * 10.0_f64.powf(-12. / raw_t);
     ThermalConductivity::new::<watt_per_meter_kelvin>((2.648151_e-3 * raw_t) / (raw_t + x))
 }
 
+/// The speed of sound in dry air given an ambient temperature
 pub fn speed_of_sound(temperature: ThermodynamicTemperature) -> Velocity {
-    (constants::Kappa * constants::R() * temperature).sqrt()
+    (constants::Kappa() * constants::Rd() * temperature).sqrt()
 }
 
-pub fn standard_density_msl() -> MassDensity {
-    MassDensity::new::<kilogram_per_cubic_meter>(1.225)
-}
-
-pub fn standard_pressure_msl() -> Pressure {
-    Pressure::new::<pascal>(101_325.)
-}
-
-pub fn standard_temperature_msl() -> ThermodynamicTemperature {
-    ThermodynamicTemperature::new::<celsius>(15.)
-}
-
-pub fn standard_humidity_msl() -> Ratio {
-    Ratio::new::<percent>(0.)
-}
-
-// https://wahiduddin.net/calc/density_altitude.htm
+/// Calculates the saturation pressure of water vapor at a given
+/// thermodynamic temperature
+/// 
+/// For a faster approximation that should be valid within common
+/// atmospheric conditions, see [`saturation_vapor_pressure_fast`].
+/// 
+/// Based on the formula from https://wahiduddin.net/calc/density_altitude.htm
 pub fn saturation_vapor_pressure_wobus(temperature: ThermodynamicTemperature) -> Pressure {
-    const Eso: f64 = 6.1078;
+    const ESO: f64 = 6.1078;
     const C0: f64 = 0.99999683;
     const C1: f64 = -0.90826951e-2;
     const C2: f64 = 0.78736169e-4;
@@ -213,10 +228,14 @@ pub fn saturation_vapor_pressure_wobus(temperature: ThermodynamicTemperature) ->
         ),
         C0,
     );
-    Pressure::new::<millibar>(Eso * p.powi(-8))
+    Pressure::new::<millibar>(ESO * p.powi(-8))
 }
 
-// Within 1mb of the Wobus formula up to about 70deg C.
+/// Calculates the saturation pressure of water vapor at a given
+/// thermodynamic temperature using an approximation
+/// 
+/// This formula is generally within 1mb of the Wobus formula up
+/// to about 70 °C. Beyond that limit, the error increases.
 pub fn saturation_vapor_pressure_fast(temperature: ThermodynamicTemperature) -> Pressure {
     const C0: f64 = 6.1078;
     const C1: f64 = 7.5;
@@ -231,35 +250,40 @@ pub fn saturation_vapor_pressure_fast(temperature: ThermodynamicTemperature) -> 
     }
 }
 
+/// Calculates the relative humidity given the ambient pressure
+/// and partial pressure of water vapor
 pub fn relative_humidity(ambient_pressure: Pressure, vapor_pressure: Pressure) -> Ratio {
     vapor_pressure / ambient_pressure
 }
 
-pub fn moist_air_density(
+
+fn moist_air_density(
     ambient_pressure: Pressure,
     vapor_pressure: Pressure,
     temperature: ThermodynamicTemperature,
 ) -> MassDensity {
     let dry_air_pressure = ambient_pressure - vapor_pressure;
-    (dry_air_pressure / (constants::R() * temperature))
+    (dry_air_pressure / (constants::Rd() * temperature))
         + (vapor_pressure / (constants::Rv() * temperature))
 
     //ambient_pressure / (*R * temperature) * (Ratio::new::<ratio>(1.) - ((0.378 * vapor_pressure) / ambient_pressure))
 }
 
-pub fn density_altitude(
+fn density_altitude(
     ambient_pressure: Pressure,
     temperature: ThermodynamicTemperature,
     dew_point: ThermodynamicTemperature,
 ) -> DensityAltitude {
     let vapor_pressure = saturation_vapor_pressure_fast(dew_point);
+    let relative_humidity = relative_humidity(ambient_pressure, vapor_pressure);
     let virtual_temperature = dbg!(virtual_temperature(
-        ambient_pressure,
-        vapor_pressure,
+        relative_humidity,
         temperature
     ));
 
-    //let air_density = dbg!(moist_air_density(ambient_pressure, vapor_pressure, temperature));
+    // let air_density = dbg!(moist_air_density(ambient_pressure, vapor_pressure, temperature));
+
+    //DensityAltitude::interpret
 
     //let density_pressure = dbg!(temperature * air_density * (*R));
 
@@ -267,19 +291,19 @@ pub fn density_altitude(
 
     let layer = dbg!(Layer::find_by_pressure(ambient_pressure).unwrap());
 
-    let relative_pressure = dbg!(ambient_pressure / layer.base_pressure);
+    let relative_pressure = dbg!(ambient_pressure / layer.pressure.start);
     let relative_temperature = dbg!(layer.base_temperature / virtual_temperature);
 
     let relative_pressure_temperature = relative_pressure * relative_temperature;
 
     if let Some(lapse_rate) = layer.lapse_rate {
         // let inner = 1.0_f64 + f64::from((lapse_rate * (altitude - layer_base)) / base_temperature);
-        // let power = -f64::from(constants::g0()/(*R * lapse_rate));
+        // let power = -f64::from(constants::standard_gravity_msl()/(*R * lapse_rate));
         // let standard_pressure = base_pressure * inner.powf(power);
 
         let temperature_height: Length = dbg!(layer.base_temperature / lapse_rate);
 
-        let pressure_exp_m1 = dbg!(lapse_rate * -constants::R_over_g0()).get::<ratio>();
+        let pressure_exp_m1 = dbg!(lapse_rate * -constants::Rd_over_standard_gravity_msl()).get::<ratio>();
         let temp_ratio = dbg!(
             1.0_f64
                 - relative_pressure_temperature
@@ -288,33 +312,33 @@ pub fn density_altitude(
         );
 
         let layer_height: Length = dbg!(temp_ratio * temperature_height);
-        DensityAltitude::interpret(layer_height + layer.base_altitude.remove_context())
+        DensityAltitude::interpret(layer_height + layer.altitude.start.remove_context())
 
     // let x1 = layer.base_temperature / lapse_rate
-    // let ex = lapse_rate * (*RStar) / ((constants::g0()))
+    // let ex = lapse_rate * (*RStar) / ((constants::standard_gravity_msl()))
     } else {
         // let layer_height = altitude - layer_base;
-        // let inner = f64::from(- (constants::g0() * layer_height) / (*R * layer_temperature));
+        // let inner = f64::from(- (constants::standard_gravity_msl() * layer_height) / (*R * layer_temperature));
         // base_pressure * inner.exp()
 
         let pressure_exp_m1 = relative_pressure_temperature.get::<ratio>();
         let temp_ratio = pressure_exp_m1.ln();
-        let height_gradient: Length = layer.base_temperature * -constants::R_over_g0();
+        let height_gradient: Length = layer.base_temperature * -constants::Rd_over_standard_gravity_msl();
         let layer_height: Length = height_gradient * temp_ratio;
-        DensityAltitude::interpret(layer_height + layer.base_altitude.remove_context())
+        DensityAltitude::interpret(layer_height + layer.altitude.start.remove_context())
     }
 }
 
+/// Computes the virtual temperature given the relative humidity
 pub fn virtual_temperature(
-    ambient_pressure: Pressure,
-    partial_pressure_vapor: Pressure,
+    relative_humidity: Ratio,
     temperature: ThermodynamicTemperature,
 ) -> ThermodynamicTemperature {
-    let relative_humidity = relative_humidity(partial_pressure_vapor, ambient_pressure);
     temperature
         / (1.
-            - (1. - (constants::Mv() / constants::M0()).get::<ratio>())
+            - (1. - (constants::Mv() / constants::Md()).get::<ratio>())
                 * relative_humidity.get::<ratio>())
+
     //relative_humidity.get::<ratio>().mul_add(0.61, 1.) * temperature
 }
 
