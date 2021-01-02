@@ -1,27 +1,27 @@
 //! Control parameters for managing the CJ4
 
 use std::{fmt, ops};
+use uom::num_traits::clamp;
 use uom::si::{
     f64::*,
     force::poundal,
     ratio::{percent, ratio},
 };
-use uom::num_traits::clamp;
 
 /// The FADEC throttle mode
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum ThrottleMode {
     /// An engine at effectively idle state
     Undefined,
-    
+
     /// Cruise mode
     Cruise,
 
-    /// Climb mode 
+    /// Climb mode
     Climb,
 
     /// Takeoff mode
-    Takeoff
+    Takeoff,
 }
 
 impl Default for ThrottleMode {
@@ -80,7 +80,8 @@ impl ThrottleAxis {
     /// The top limit for the climb range
     pub const CLIMB_MAX: Self = Self(Self::CLIMB_MAX_VALUE);
     /// The throttle level value corresponding to the Climb detent
-    pub const CLIMB: Self = Self((Self::CLIMB_MAX_VALUE - Self::CRUISE_MAX_VALUE) / 2. + Self::CRUISE_MAX_VALUE);
+    pub const CLIMB: Self =
+        Self((Self::CLIMB_MAX_VALUE - Self::CRUISE_MAX_VALUE) / 2. + Self::CRUISE_MAX_VALUE);
     /// The throttle level value corresponding to the Takeoff detent
     pub const TAKEOFF: Self = Self::MAX;
 

@@ -1,14 +1,15 @@
-use gauge_sys::{gauge_unit, indexed_aircraft_variable, unindexed_aircraft_variable, named_variable};
-use uom::si::{
-    f64::*,
-    force::poundal,
-    length::foot,
-    mass_density::slug_per_cubic_foot,
-    ratio::ratio,
+use gauge_sys::{
+    gauge_unit, indexed_aircraft_variable, named_variable, unindexed_aircraft_variable,
 };
-use num_derive::{ToPrimitive, FromPrimitive};
-use num_traits::{ToPrimitive, FromPrimitive};
-use wt_cj4::{control_params::{ThrottlePercent, ThrottleMode}, engines::EngineNumber};
+use num_derive::{FromPrimitive, ToPrimitive};
+use num_traits::{FromPrimitive, ToPrimitive};
+use uom::si::{
+    f64::*, force::poundal, length::foot, mass_density::slug_per_cubic_foot, ratio::ratio,
+};
+use wt_cj4::{
+    control_params::{ThrottleMode, ThrottlePercent},
+    engines::EngineNumber,
+};
 
 gauge_unit!(Percent: "Percent"; "A percentage, expressed as a value between 0 and 100");
 gauge_unit!(Pounds: "Pounds"; "Weight measured in pounds or Force measured in poundals of force");
@@ -107,7 +108,7 @@ pub enum ThrottleEventType {
     Throttle1Decr,
     Throttle2Decr,
     IncreaseThrottle,
-    DecreaseThrottle
+    DecreaseThrottle,
 }
 
 impl simconnect_sys::EventType for ThrottleEventType {
@@ -251,7 +252,9 @@ impl simconnect_sys::NotificationGroup for NotificationGroup {
     type GroupsIter = &'static [simconnect_sys::NotificationGroupDefinition<Self>];
     type EventType = ThrottleEventType;
     fn to_ffi(&self) -> simconnect_sys::ffi::RawNotificationGroupId {
-        self.to_u32().map(simconnect_sys::ffi::RawNotificationGroupId).unwrap()
+        self.to_u32()
+            .map(simconnect_sys::ffi::RawNotificationGroupId)
+            .unwrap()
     }
 
     fn from_ffi(raw: simconnect_sys::ffi::RawNotificationGroupId) -> Option<Self> {
@@ -259,12 +262,10 @@ impl simconnect_sys::NotificationGroup for NotificationGroup {
     }
 
     fn group_definitions() -> Self::GroupsIter {
-        &[
-            simconnect_sys::NotificationGroupDefinition {
-                group: Self::Throttle,
-                priority: simconnect_sys::ffi::NotificationGroupPriority::HIGHEST_MASKABLE,
-            }
-        ]
+        &[simconnect_sys::NotificationGroupDefinition {
+            group: Self::Throttle,
+            priority: simconnect_sys::ffi::NotificationGroupPriority::HIGHEST_MASKABLE,
+        }]
     }
 }
 

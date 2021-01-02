@@ -1,20 +1,13 @@
+use crate::types::{InvLapseRate, LapseRate};
 use std::ops::Div;
 use uom::si::{
-    f64::*,
-    acceleration::meter_per_second_squared,
-    amount_of_substance::kilomole,
-    molar_mass::kilogram_per_mole,
-    pressure::hectopascal,
-    molar_energy::joule_per_mole,
-    specific_heat_capacity::joule_per_kilogram_kelvin,
-    thermodynamic_temperature::kelvin,
-    temperature_interval::kelvin as diff_kelvin,
-    mass_density::kilogram_per_cubic_meter,
-    length::meter,
-    available_energy::joule_per_kilogram,
-    velocity::meter_per_second,
+    acceleration::meter_per_second_squared, amount_of_substance::kilomole,
+    available_energy::joule_per_kilogram, f64::*, length::meter,
+    mass_density::kilogram_per_cubic_meter, molar_energy::joule_per_mole,
+    molar_mass::kilogram_per_mole, pressure::hectopascal,
+    specific_heat_capacity::joule_per_kilogram_kelvin, temperature_interval::kelvin as diff_kelvin,
+    thermodynamic_temperature::kelvin, velocity::meter_per_second,
 };
-use crate::types::{LapseRate, InvLapseRate};
 
 /// Gravitational acceleration at 0 MSL
 #[inline(always)]
@@ -33,7 +26,6 @@ pub fn NA() -> <f64 as Div<AmountOfSubstance>>::Output {
 pub fn M0() -> MolarMass {
     MolarMass::new::<kilogram_per_mole>(28.964_420_e-3)
 }
-
 
 /// Molecular weight of water vapor
 #[inline(always)]
@@ -127,4 +119,3 @@ pub fn earth_radius() -> Length {
 pub fn a0() -> Velocity {
     Velocity::new::<meter_per_second>(340.294)
 }
-

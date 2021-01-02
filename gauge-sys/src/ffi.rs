@@ -3,10 +3,10 @@
 
 #![allow(missing_docs)]
 
+use num_derive::{FromPrimitive, ToPrimitive};
+use num_traits::{FromPrimitive, ToPrimitive};
 use std::ffi::CStr;
 use std::os::raw::c_char;
-use num_derive::{ToPrimitive, FromPrimitive};
-use num_traits::{ToPrimitive, FromPrimitive};
 
 extern "C" {
     fn get_units_enum(name: *const c_char) -> RawUnit;
@@ -18,14 +18,14 @@ extern "C" {
 }
 
 /// Unregisters all named variables
-/// 
+///
 /// This function sould be called when the gauge is unloaded.
 pub fn unregister_named_variables() {
     unsafe { unregister_all_named_vars() }
 }
 
 /// The Flight Simulator context
-/// 
+///
 /// This is required for NanoVG operations.
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Hash)]
 #[repr(transparent)]
@@ -41,20 +41,20 @@ pub struct RawServiceId(u32);
 pub enum ServiceId {
     PreQuery,
     PostQuery,
-    PreInstall, // extra_data = resource_handle
+    PreInstall,  // extra_data = resource_handle
     PostInstall, // extra_data = resource_handle
     PreInitialize,
     PostInitialize,
     PreUpdate,
     PostUpdate,
-    PreGenerate, // extra_data = phase
+    PreGenerate,  // extra_data = phase
     PostGenerate, // extra_data = phase
     PreDraw,
     PostDraw,
     PreKill,
     PostKill,
     ConnectToWindow, // extra_data = PANEL_WND
-    Disconnect, // extra_data = PANEL_WND
+    Disconnect,      // extra_data = PANEL_WND
     PanelOpen,
     PanelClose,
 }
@@ -76,8 +76,7 @@ impl ServiceId {
 /// Frame data from the Gauge API on `PreDraw` and `PostDraw` events
 #[derive(Clone, Copy, Debug)]
 #[repr(C)]
-pub struct GaugeDrawData
-{
+pub struct GaugeDrawData {
     /// Mouse X coordinate
     pub mx: f64,
     /// Mouse Y coordinate
@@ -103,9 +102,9 @@ pub struct RawUnit(u32);
 
 impl RawUnit {
     /// Requests an identifer to use when requesting data in a specific unit
-    /// 
+    ///
     /// # Safety
-    /// 
+    ///
     /// The `name` string _must_ be null-terminated.
     pub unsafe fn from_units_enum_str(name: &str) -> Self {
         let name = CStr::from_bytes_with_nul_unchecked(name.as_bytes());
@@ -120,12 +119,12 @@ pub struct RawAircraftVariable(u32);
 
 impl RawAircraftVariable {
     /// Registers an interest in an aircraft variable
-    /// 
+    ///
     /// Returns an aircraft variable ID used for later interactions with this
     /// variable.
-    /// 
+    ///
     /// # Safety
-    /// 
+    ///
     /// The `name` string _must_ be null-terminated.
     pub unsafe fn from_aircraft_variable_enum_str(name: &str) -> Self {
         let name = CStr::from_bytes_with_nul_unchecked(name.as_bytes());
@@ -133,7 +132,7 @@ impl RawAircraftVariable {
     }
 
     /// Reads the associated aircraft variable
-    /// 
+    ///
     /// For uninexed variables, pass `0` as `index`.
     pub fn read(self, unit: RawUnit, index: u32) -> f64 {
         unsafe { aircraft_varget(self, unit, index) }
@@ -147,12 +146,12 @@ pub struct RawNamedVariable(u32);
 
 impl RawNamedVariable {
     /// Registers a new named variable
-    /// 
+    ///
     /// Returns a named variable ID used for later interactions with this
     /// variable.
-    /// 
+    ///
     /// # Safety
-    /// 
+    ///
     /// The `name` string _must_ be null-terminated.
     pub unsafe fn register_new(name: &str) -> Self {
         let name = CStr::from_bytes_with_nul_unchecked(name.as_bytes());
@@ -161,6 +160,6 @@ impl RawNamedVariable {
 
     /// Sets the associated named variable to the provided value
     pub fn set(self, value: f64) {
-        unsafe { set_named_variable_value(self, value)}
+        unsafe { set_named_variable_value(self, value) }
     }
 }

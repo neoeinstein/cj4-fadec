@@ -1,11 +1,11 @@
 //! Structures for treating the dual engine system of the CJ4 jointly
 //! or independently as required
-//! 
+//!
 //! ## Examples
-//! 
+//!
 //! ```
 //! use wt_cj4::engines::{EngineNumber, EngineData};
-//! 
+//!
 //! let mut engines = EngineData::new(5.0);
 //! engines[EngineNumber::Engine1] += 2.0;
 //! engines[EngineNumber::Engine2] += 0.5 * engines[EngineNumber::Engine1];
@@ -27,19 +27,18 @@ pub enum EngineNumber {
     Engine1,
 
     /// Engine 2
-    Engine2
+    Engine2,
 }
 
 impl EngineNumber {
     /// Produces an iterator to step through the engine indexes
     pub fn iter() -> impl IntoIterator<Item = Self> {
-        iter::once(Self::Engine1)
-            .chain(iter::once(Self::Engine2))
+        iter::once(Self::Engine1).chain(iter::once(Self::Engine2))
     }
 }
 
 /// Bilateral engine data structure
-/// 
+///
 /// Can be indexed into by using the `EngineNumber` structure:
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub struct EngineData<T> {
@@ -82,20 +81,18 @@ impl<T> EngineData<T> {
     /// Runs a function for a single engine on all of the engines, updating
     /// engine data in place
     pub fn update(&mut self, mut f: impl FnMut(EngineNumber, &mut T)) {
-            f(EngineNumber::Engine1, &mut self.engine1);
-            f(EngineNumber::Engine2, &mut self.engine2);
+        f(EngineNumber::Engine1, &mut self.engine1);
+        f(EngineNumber::Engine2, &mut self.engine2);
     }
 
     /// Iterates through the engine values, borrowing the underlying data
     pub fn iter(&self) -> impl IntoIterator<Item = &T> {
-        iter::once(&self.engine1)
-            .chain(iter::once(&self.engine2))
+        iter::once(&self.engine1).chain(iter::once(&self.engine2))
     }
 
     /// Iterates through the engine values, mutably borrowing the underlying value
     pub fn iter_mut(&mut self) -> impl IntoIterator<Item = &mut T> {
-        iter::once(&mut self.engine1)
-            .chain(iter::once(&mut self.engine2))
+        iter::once(&mut self.engine1).chain(iter::once(&mut self.engine2))
     }
 }
 
@@ -103,8 +100,7 @@ impl<T> IntoIterator for EngineData<T> {
     type Item = T;
     type IntoIter = iter::Chain<iter::Once<Self::Item>, iter::Once<Self::Item>>;
     fn into_iter(self) -> Self::IntoIter {
-        iter::once(self.engine1)
-            .chain(iter::once(self.engine2))
+        iter::once(self.engine1).chain(iter::once(self.engine2))
     }
 }
 

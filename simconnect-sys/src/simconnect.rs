@@ -24,23 +24,24 @@ impl SimConnect {
                 ffi::WindowHandle::default(),
                 0,
                 ffi::Handle::default(),
-                0)
+                0,
+            )
         };
 
         if result.is_success() {
-            Ok(SimConnect {
-                raw: handle,
-            })
+            Ok(SimConnect { raw: handle })
         } else {
             Err(result)
         }
     }
 
     /// Registers a notification group with the SimConnect API
-    /// 
+    ///
     /// Defines the types of messages and groups that SimConnect
     /// should enqueue messages for.
-    pub fn register_notification_group_enum<G: NotificationGroup>(&self) -> Result<(), ffi::HResult> {
+    pub fn register_notification_group_enum<G: NotificationGroup>(
+        &self,
+    ) -> Result<(), ffi::HResult> {
         for def in G::group_definitions() {
             if let Err(err) = self.register_notification_group(def) {
                 println!("Error registering definition for group");
@@ -50,21 +51,33 @@ impl SimConnect {
         Ok(())
     }
 
-    fn register_notification_group<G: NotificationGroup>(&self, group_def: &NotificationGroupDefinition<G>) -> Result<(), ffi::HResult> {
+    fn register_notification_group<G: NotificationGroup>(
+        &self,
+        group_def: &NotificationGroupDefinition<G>,
+    ) -> Result<(), ffi::HResult> {
         for def in G::EventType::event_definitions() {
             let n = if let Ok(value) = CStr::from_bytes_with_nul(def.name.as_bytes()) {
                 Cow::Borrowed(value)
             } else {
                 Cow::Owned(CString::new(def.name).unwrap())
             };
-    
+
             unsafe {
-                let result = ffi::SimConnect_MapClientEventToSimEvent(self.raw, def.event.to_ffi(), n.as_ptr());
+                let result = ffi::SimConnect_MapClientEventToSimEvent(
+                    self.raw,
+                    def.event.to_ffi(),
+                    n.as_ptr(),
+                );
                 if !result.is_success() {
                     println!("Error registering client event mapping");
                     return Err(result);
                 }
-                let result = ffi::SimConnect_AddClientEventToNotificationGroup(self.raw, group_def.group.to_ffi(), def.event.to_ffi(), def.is_maskable);
+                let result = ffi::SimConnect_AddClientEventToNotificationGroup(
+                    self.raw,
+                    group_def.group.to_ffi(),
+                    def.event.to_ffi(),
+                    def.is_maskable,
+                );
                 if !result.is_success() {
                     println!("Error adding client event to a notification group");
                     return Err(result);
@@ -72,7 +85,11 @@ impl SimConnect {
             }
         }
         unsafe {
-            let result = ffi::SimConnect_SetNotificationGroupPriority(self.raw, group_def.group.to_ffi(), group_def.priority);
+            let result = ffi::SimConnect_SetNotificationGroupPriority(
+                self.raw,
+                group_def.group.to_ffi(),
+                group_def.priority,
+            );
             if !result.is_success() {
                 println!("Error setting notification group priority");
                 return Err(result);
@@ -82,7 +99,7 @@ impl SimConnect {
     }
 
     /// Registers a client data definition with the SimConnect API
-    /// 
+    ///
     /// Used to define the shape of data that will be sent to the
     /// SimConnect API from the client.
     pub fn register_data_definition<G: DataDefinitionGroup>(&self) -> Result<(), ffi::HResult> {
@@ -100,11 +117,19 @@ impl SimConnect {
             };
 
             unsafe {
-                let result = ffi::SimConnect_AddToDataDefinition(self.raw, G::group_id(), n.as_ptr(), u.as_ptr(), def.datum_type.to_ffi(), 0., UNSPECIFIED);
+                let result = ffi::SimConnect_AddToDataDefinition(
+                    self.raw,
+                    G::group_id(),
+                    n.as_ptr(),
+                    u.as_ptr(),
+                    def.datum_type.to_ffi(),
+                    0.,
+                    UNSPECIFIED,
+                );
                 if !result.is_success() {
                     println!("Error adding entry to data definition");
                     return Err(result);
-                }    
+                }
             }
         }
         Ok(())
@@ -114,7 +139,15 @@ impl SimConnect {
     /// defined by a client data definition
     pub fn update_user_data<D: DataDefinitionGroup>(&self, data: &D) -> Result<(), ffi::HResult> {
         unsafe {
-            let result = ffi::SimConnect_SetDataOnSimObject(self.raw, D::group_id(), ffi::RawObjectId::USER, ffi::DataSetFlag::Default.to_ffi(), 0, std::mem::size_of::<D>() as u32, data as *const D as *const std::ffi::c_void);
+            let result = ffi::SimConnect_SetDataOnSimObject(
+                self.raw,
+                D::group_id(),
+                ffi::RawObjectId::USER,
+                ffi::DataSetFlag::Default.to_ffi(),
+                0,
+                std::mem::size_of::<D>() as u32,
+                data as *const D as *const std::ffi::c_void,
+            );
             if !result.is_success() {
                 println!("Error setting data on the user object");
                 return Err(result);
@@ -146,19 +179,22 @@ impl SimConnect {
         loop {
             unsafe {
                 let result = ffi::SimConnect_GetNextDispatch(
-                    self.raw, 
-                    (&mut header_ptr) as *mut *const ffi::ReceiveHeader , 
-                    &mut size as *mut u32
+                    self.raw,
+                    (&mut header_ptr) as *mut *const ffi::ReceiveHeader,
+                    &mut size as *mut u32,
                 );
 
                 if !result.is_success() {
                     if result != ffi::HResult::E_FAIL {
-                        println!("Error when trying to get next dispatch: {:#08x}", result.raw());
+                        println!(
+                            "Error when trying to get next dispatch: {:#08x}",
+                            result.raw()
+                        );
                     }
                     break;
                 } else {
                     loops += 1;
-                    
+
                     if handle_dispatch(header_ptr, size, dispatcher) == Loop::Break {
                         break;
                     }
@@ -188,14 +224,18 @@ enum Loop {
 //     handle_dispatch(header_ptr, header_size, dispatcher.as_mut())
 // }
 
-fn handle_dispatch<D: std::fmt::Debug + SimConnectDispatcher>(header_ptr: *const ffi::ReceiveHeader, header_size: u32, dispatcher: &mut D) -> Loop {
+fn handle_dispatch<D: std::fmt::Debug + SimConnectDispatcher>(
+    header_ptr: *const ffi::ReceiveHeader,
+    header_size: u32,
+    dispatcher: &mut D,
+) -> Loop {
     if header_ptr.is_null() {
         eprintln!("Header is null");
         return Loop::Break;
     }
 
     let header = unsafe { std::ptr::read(header_ptr) };
-    
+
     //println!("Header: {} {} {}", header.version, header.size, header.message_type.0);
     assert_eq!(header_size, header.size);
 
@@ -210,7 +250,7 @@ fn handle_dispatch<D: std::fmt::Debug + SimConnectDispatcher>(header_ptr: *const
 }
 
 /// ## Safety
-/// 
+///
 /// Tread carefully. This is basically std::mem::transmute with a size check.
 /// `ptr` is assumed to be non-null.
 unsafe fn convert_with_static_size<T>(ptr: &*const ffi::ReceiveHeader, size: u32) -> &T {
@@ -219,9 +259,14 @@ unsafe fn convert_with_static_size<T>(ptr: &*const ffi::ReceiveHeader, size: u32
 }
 
 /// ## Safety
-/// 
+///
 /// * `header_ptr` is assumed to be non-null
-unsafe fn handle_dispatch_inner<D: std::fmt::Debug + SimConnectDispatcher>(header_ptr: *const ffi::ReceiveHeader, size: u32, message_type: ffi::MessageType, dispatcher: &mut D) -> Loop {
+unsafe fn handle_dispatch_inner<D: std::fmt::Debug + SimConnectDispatcher>(
+    header_ptr: *const ffi::ReceiveHeader,
+    size: u32,
+    message_type: ffi::MessageType,
+    dispatcher: &mut D,
+) -> Loop {
     match message_type {
         ffi::MessageType::Null => {
             //println!("Null message, nothing to do!");
@@ -230,9 +275,12 @@ unsafe fn handle_dispatch_inner<D: std::fmt::Debug + SimConnectDispatcher>(heade
         ffi::MessageType::Event => {
             //println!("Looks like an event!");
             let message = convert_with_static_size::<ffi::ReceiveEvent>(&header_ptr, size);
-            
+
             //println!("Dispatching");
-            println!("Event: {} {} {}", message.group_id.0, message.event_id.0, message.data);
+            println!(
+                "Event: {} {} {}",
+                message.group_id.0, message.event_id.0, message.data
+            );
             dispatcher.handle_event(message);
         }
         ffi::MessageType::Exception => {
@@ -244,7 +292,7 @@ unsafe fn handle_dispatch_inner<D: std::fmt::Debug + SimConnectDispatcher>(heade
 
             //println!("Dispatching");
             println!(
-                "Connection: {} {}.{}.{}.{} ({}.{}.{}.{})", 
+                "Connection: {} {}.{}.{}.{} ({}.{}.{}.{})",
                 message.application_name(),
                 message.application_version.version_major,
                 message.application_version.version_minor,
@@ -291,7 +339,7 @@ impl Drop for SimConnect {
 pub struct DataDefinition {
     /// The name of the variable to be updated
     pub name: &'static str,
-    
+
     /// The name of the unit type for the variable
     pub unit: &'static str,
 
@@ -303,7 +351,7 @@ pub struct DataDefinition {
 pub trait DataDefinitionGroup: Sized {
     /// An iterator of data definitions
     type DataDefsIter: IntoIterator<Item = &'static DataDefinition>;
-    
+
     /// The raw FFI group ID assigned by the client
     fn group_id() -> ffi::RawDataDefinitionId;
 
@@ -330,7 +378,7 @@ pub struct NotificationGroupDefinition<Group> {
 pub trait NotificationGroup: Sized + 'static {
     /// An iterator of notification groups
     type GroupsIter: IntoIterator<Item = &'static NotificationGroupDefinition<Self>>;
-    
+
     /// The event type for identifying the different notifications
     type EventType: EventType;
 
@@ -354,14 +402,14 @@ pub struct EventDefinition<EventType> {
     pub name: &'static str,
 
     /// Whether or not the event is maskable
-    pub is_maskable: bool
+    pub is_maskable: bool,
 }
 
 /// An event type
 pub trait EventType: Sized + 'static {
     /// An iterator of event definitions
     type EventsIter: IntoIterator<Item = &'static EventDefinition<Self>>;
-    
+
     /// Gets the raw event ID for this event
     fn to_ffi(&self) -> ffi::RawEventId;
 

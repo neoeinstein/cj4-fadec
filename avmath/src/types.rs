@@ -1,6 +1,14 @@
-use uom::{si::{f64::*, ratio::ratio, pressure::{pascal, inch_of_mercury, self}, length::{foot, self}}, Conversion};
-use uom::typenum::{P1, Z0};
 use crate::{atmosphere::Layer, constants};
+use uom::typenum::{P1, Z0};
+use uom::{
+    si::{
+        f64::*,
+        length::{self, foot},
+        pressure::{self, inch_of_mercury, pascal},
+        ratio::ratio,
+    },
+    Conversion,
+};
 
 pub type LapseRate = <TemperatureInterval as std::ops::Div<Length>>::Output;
 pub type InvLapseRate = <Length as std::ops::Div<TemperatureInterval>>::Output;
@@ -79,15 +87,29 @@ impl GeopotentialAltitude {
         let k1 = (-constants::R_over_g0() * -lapse_rate).get::<ratio>();
         let k2 = (lapse_rate * self.0 / layer.base_temperature).get::<ratio>();
 
-        Some(Pressure::new::<pascal>((altimeter.remove_context().get::<pascal>().powf(k1) + layer.base_pressure.get::<pascal>().powf(k1) * k2).powf(k1.recip())))
+        Some(Pressure::new::<pascal>(
+            (altimeter.remove_context().get::<pascal>().powf(k1)
+                + layer.base_pressure.get::<pascal>().powf(k1) * k2)
+                .powf(k1.recip()),
+        ))
     }
 
     pub fn to_pressure_asos(self, altimeter: AltimeterSetting) -> Pressure {
-        Pressure::new::<inch_of_mercury>((altimeter.remove_context().get::<inch_of_mercury>().powf(0.1903) - (1.313e-5 * self.0.get::<foot>())).powf(5.255))
+        Pressure::new::<inch_of_mercury>(
+            (altimeter
+                .remove_context()
+                .get::<inch_of_mercury>()
+                .powf(0.1903)
+                - (1.313e-5 * self.0.get::<foot>()))
+            .powf(5.255),
+        )
     }
 
     pub fn to_altimeter_setting_asos(self, pressure: Pressure) -> AltimeterSetting {
-        AltimeterSetting::new::<inch_of_mercury>((pressure.get::<inch_of_mercury>().powf(0.1903) + (1.313e-5 * self.0.get::<foot>())).powf(5.255))
+        AltimeterSetting::new::<inch_of_mercury>(
+            (pressure.get::<inch_of_mercury>().powf(0.1903) + (1.313e-5 * self.0.get::<foot>()))
+                .powf(5.255),
+        )
     }
 }
 
@@ -125,7 +147,6 @@ impl std::ops::Div<GeopotentialAltitude> for Length {
         self / rhs.0
     }
 }
-
 
 #[derive(Clone, Copy, Debug, PartialEq, PartialOrd)]
 pub struct GeometricAltitude(Length);

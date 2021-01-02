@@ -1,30 +1,54 @@
+use crate::{
+    atmosphere::Layer, constants, DensityAltitude, DynamicViscosity, FrequencyByArea,
+    GeopotentialAltitude, InvLapseRate, KinematicViscosity, LapseRate, NumberDensity,
+    SpecificWeight,
+};
 use uom::si::{
-    f64::*, 
+    f64::*,
     mass_density::kilogram_per_cubic_meter,
-    pressure::{pascal, millibar},
+    pressure::{millibar, pascal},
     ratio::{percent, ratio},
     temperature_interval::kelvin as diff_kelvin,
     thermal_conductivity::watt_per_meter_kelvin,
     thermodynamic_temperature::{degree_celsius as celsius, kelvin},
     time::second,
 };
-use crate::{atmosphere::Layer, constants, DensityAltitude, FrequencyByArea, SpecificWeight, NumberDensity, DynamicViscosity, GeopotentialAltitude, KinematicViscosity, LapseRate, InvLapseRate};
 
 #[inline]
-pub fn ideal_pressure(rho: MassDensity, r: SpecificHeatCapacity, t: ThermodynamicTemperature) -> Pressure {
+pub fn ideal_pressure(
+    rho: MassDensity,
+    r: SpecificHeatCapacity,
+    t: ThermodynamicTemperature,
+) -> Pressure {
     rho * r * t
 }
 
-pub fn standard_temperature_raw(altitude: GeopotentialAltitude, layer_base: GeopotentialAltitude, base_temperature: ThermodynamicTemperature, lapse_rate: LapseRate) -> ThermodynamicTemperature {
+pub fn standard_temperature_raw(
+    altitude: GeopotentialAltitude,
+    layer_base: GeopotentialAltitude,
+    base_temperature: ThermodynamicTemperature,
+    lapse_rate: LapseRate,
+) -> ThermodynamicTemperature {
     base_temperature + lapse_rate * (altitude - layer_base)
 }
 
 pub fn standard_temperature(altitude: GeopotentialAltitude) -> Option<ThermodynamicTemperature> {
     let layer = Layer::find_by_altitude(altitude)?;
-    Some(standard_temperature_raw(altitude, layer.base_altitude, layer.base_temperature, layer.lapse_rate.unwrap_or_default()))
+    Some(standard_temperature_raw(
+        altitude,
+        layer.base_altitude,
+        layer.base_temperature,
+        layer.lapse_rate.unwrap_or_default(),
+    ))
 }
 
-fn standard_pressure_with_lapse(altitude: GeopotentialAltitude, layer_base: GeopotentialAltitude, base_temperature: ThermodynamicTemperature, lapse_rate: LapseRate, base_pressure: Pressure) -> Pressure {
+fn standard_pressure_with_lapse(
+    altitude: GeopotentialAltitude,
+    layer_base: GeopotentialAltitude,
+    base_temperature: ThermodynamicTemperature,
+    lapse_rate: LapseRate,
+    base_pressure: Pressure,
+) -> Pressure {
     let layer_height = dbg!(altitude - layer_base);
     let height_to_zero_temp = dbg!(lapse_rate / base_temperature);
     let inner = dbg!(1.0_f64 + (height_to_zero_temp * layer_height).get::<ratio>());
@@ -32,7 +56,12 @@ fn standard_pressure_with_lapse(altitude: GeopotentialAltitude, layer_base: Geop
     base_pressure * inner.powf(pressure_exp)
 }
 
-fn standard_pressure_no_lapse(altitude: GeopotentialAltitude, layer_base: GeopotentialAltitude, layer_temperature: ThermodynamicTemperature, base_pressure: Pressure) -> Pressure {
+fn standard_pressure_no_lapse(
+    altitude: GeopotentialAltitude,
+    layer_base: GeopotentialAltitude,
+    layer_temperature: ThermodynamicTemperature,
+    base_pressure: Pressure,
+) -> Pressure {
     let layer_height = altitude - layer_base;
     let effective_lapse_rate: InvLapseRate = layer_height / layer_temperature;
     let pressure_exp = ((-constants::g0_over_R()) * effective_lapse_rate).get::<ratio>();
@@ -42,9 +71,20 @@ fn standard_pressure_no_lapse(altitude: GeopotentialAltitude, layer_base: Geopot
 pub fn standard_pressure(altitude: GeopotentialAltitude) -> Option<Pressure> {
     let layer = Layer::find_by_altitude(altitude)?;
     if let Some(lapse_rate) = layer.lapse_rate {
-        Some(standard_pressure_with_lapse(altitude, layer.base_altitude, layer.base_temperature, lapse_rate, layer.base_pressure))
+        Some(standard_pressure_with_lapse(
+            altitude,
+            layer.base_altitude,
+            layer.base_temperature,
+            lapse_rate,
+            layer.base_pressure,
+        ))
     } else {
-        Some(standard_pressure_no_lapse(altitude, layer.base_altitude, layer.base_temperature, layer.base_pressure))
+        Some(standard_pressure_no_lapse(
+            altitude,
+            layer.base_altitude,
+            layer.base_temperature,
+            layer.base_pressure,
+        ))
     }
 }
 
@@ -59,7 +99,10 @@ pub fn gravitational_acceleration(altitude: GeopotentialAltitude) -> Acceleratio
     constants::g0() * square
 }
 
-pub fn specific_weight(density: MassDensity, gravitational_acceleration: Acceleration) -> SpecificWeight {
+pub fn specific_weight(
+    density: MassDensity,
+    gravitational_acceleration: Acceleration,
+) -> SpecificWeight {
     density * gravitational_acceleration
 }
 
@@ -73,16 +116,29 @@ pub fn mean_particle_speed(temperature: ThermodynamicTemperature) -> Velocity {
 }
 
 // mean free path given temperature and pressure
-pub fn mean_free_path_temp_pres(temperature: ThermodynamicTemperature, pressure: Pressure) -> Length {
-    constants::RStar() / (std::f64::consts::SQRT_2 * std::f64::consts::PI * constants::NA() * constants::SigmaSquared()) * temperature / pressure
+pub fn mean_free_path_temp_pres(
+    temperature: ThermodynamicTemperature,
+    pressure: Pressure,
+) -> Length {
+    constants::RStar()
+        / (std::f64::consts::SQRT_2
+            * std::f64::consts::PI
+            * constants::NA()
+            * constants::SigmaSquared())
+        * temperature
+        / pressure
 }
 
 pub fn mean_free_path_number_density(number_density: NumberDensity) -> Length {
-    (std::f64::consts::SQRT_2 * std::f64::consts::PI * constants::SigmaSquared() * number_density).recip()
+    (std::f64::consts::SQRT_2 * std::f64::consts::PI * constants::SigmaSquared() * number_density)
+        .recip()
 }
 
 /// In dry air
-pub fn collision_frequency(number_density: NumberDensity, temperature: ThermodynamicTemperature) -> FrequencyByArea {
+pub fn collision_frequency(
+    number_density: NumberDensity,
+    temperature: ThermodynamicTemperature,
+) -> FrequencyByArea {
     0.944_541_e-18 * number_density * (constants::R() * temperature).sqrt()
 }
 
@@ -93,7 +149,10 @@ pub fn dynamic_viscosity(temperature: ThermodynamicTemperature) -> DynamicViscos
     (bs * t_3_2) / (constants::S() + temperature)
 }
 
-pub fn kinematic_viscosity(dynamic_viscosity: DynamicViscosity, density: MassDensity) -> KinematicViscosity {
+pub fn kinematic_viscosity(
+    dynamic_viscosity: DynamicViscosity,
+    density: MassDensity,
+) -> KinematicViscosity {
     dynamic_viscosity / density
 }
 
@@ -138,7 +197,22 @@ pub fn saturation_vapor_pressure_wobus(temperature: ThermodynamicTemperature) ->
     const C9: f64 = -0.30994571e-19;
 
     let t = temperature.get::<celsius>();
-    let p = t.mul_add(t.mul_add(t.mul_add(t.mul_add(t.mul_add(t.mul_add(t.mul_add(t.mul_add(t.mul_add(C9, C8), C7), C6), C5), C4), C3), C2), C1), C0);
+    let p = t.mul_add(
+        t.mul_add(
+            t.mul_add(
+                t.mul_add(
+                    t.mul_add(
+                        t.mul_add(t.mul_add(t.mul_add(t.mul_add(C9, C8), C7), C6), C5),
+                        C4,
+                    ),
+                    C3,
+                ),
+                C2,
+            ),
+            C1,
+        ),
+        C0,
+    );
     Pressure::new::<millibar>(Eso * p.powi(-8))
 }
 
@@ -147,9 +221,9 @@ pub fn saturation_vapor_pressure_fast(temperature: ThermodynamicTemperature) -> 
     const C0: f64 = 6.1078;
     const C1: f64 = 7.5;
     const C2: f64 = 237.3;
-    
+
     let t = temperature.get::<celsius>();
-    if t < C2 { 
+    if t < C2 {
         Pressure::new::<millibar>(0.)
     } else {
         let p = (C1 * t) / (C2 + t);
@@ -161,16 +235,29 @@ pub fn relative_humidity(ambient_pressure: Pressure, vapor_pressure: Pressure) -
     vapor_pressure / ambient_pressure
 }
 
-pub fn moist_air_density(ambient_pressure: Pressure, vapor_pressure: Pressure, temperature: ThermodynamicTemperature) -> MassDensity {
+pub fn moist_air_density(
+    ambient_pressure: Pressure,
+    vapor_pressure: Pressure,
+    temperature: ThermodynamicTemperature,
+) -> MassDensity {
     let dry_air_pressure = ambient_pressure - vapor_pressure;
-    (dry_air_pressure / (constants::R() * temperature)) + (vapor_pressure / (constants::Rv() * temperature))
+    (dry_air_pressure / (constants::R() * temperature))
+        + (vapor_pressure / (constants::Rv() * temperature))
 
     //ambient_pressure / (*R * temperature) * (Ratio::new::<ratio>(1.) - ((0.378 * vapor_pressure) / ambient_pressure))
 }
 
-pub fn density_altitude(ambient_pressure: Pressure, temperature: ThermodynamicTemperature, dew_point: ThermodynamicTemperature) -> DensityAltitude {
+pub fn density_altitude(
+    ambient_pressure: Pressure,
+    temperature: ThermodynamicTemperature,
+    dew_point: ThermodynamicTemperature,
+) -> DensityAltitude {
     let vapor_pressure = saturation_vapor_pressure_fast(dew_point);
-    let virtual_temperature = dbg!(virtual_temperature(ambient_pressure, vapor_pressure, temperature));
+    let virtual_temperature = dbg!(virtual_temperature(
+        ambient_pressure,
+        vapor_pressure,
+        temperature
+    ));
 
     //let air_density = dbg!(moist_air_density(ambient_pressure, vapor_pressure, temperature));
 
@@ -193,13 +280,18 @@ pub fn density_altitude(ambient_pressure: Pressure, temperature: ThermodynamicTe
         let temperature_height: Length = dbg!(layer.base_temperature / lapse_rate);
 
         let pressure_exp_m1 = dbg!(lapse_rate * -constants::R_over_g0()).get::<ratio>();
-        let temp_ratio = dbg!(1.0_f64 - relative_pressure_temperature.get::<ratio>().powf(pressure_exp_m1));
+        let temp_ratio = dbg!(
+            1.0_f64
+                - relative_pressure_temperature
+                    .get::<ratio>()
+                    .powf(pressure_exp_m1)
+        );
 
         let layer_height: Length = dbg!(temp_ratio * temperature_height);
         DensityAltitude::interpret(layer_height + layer.base_altitude.remove_context())
 
-        // let x1 = layer.base_temperature / lapse_rate
-        // let ex = lapse_rate * (*RStar) / ((constants::g0()))
+    // let x1 = layer.base_temperature / lapse_rate
+    // let ex = lapse_rate * (*RStar) / ((constants::g0()))
     } else {
         // let layer_height = altitude - layer_base;
         // let inner = f64::from(- (constants::g0() * layer_height) / (*R * layer_temperature));
@@ -213,15 +305,22 @@ pub fn density_altitude(ambient_pressure: Pressure, temperature: ThermodynamicTe
     }
 }
 
-pub fn virtual_temperature(ambient_pressure: Pressure, partial_pressure_vapor: Pressure, temperature: ThermodynamicTemperature) -> ThermodynamicTemperature {
+pub fn virtual_temperature(
+    ambient_pressure: Pressure,
+    partial_pressure_vapor: Pressure,
+    temperature: ThermodynamicTemperature,
+) -> ThermodynamicTemperature {
     let relative_humidity = relative_humidity(partial_pressure_vapor, ambient_pressure);
-    temperature / ( 1. - (1. - (constants::Mv() / constants::M0()).get::<ratio>()) * relative_humidity.get::<ratio>())
+    temperature
+        / (1.
+            - (1. - (constants::Mv() / constants::M0()).get::<ratio>())
+                * relative_humidity.get::<ratio>())
     //relative_humidity.get::<ratio>().mul_add(0.61, 1.) * temperature
 }
 
 #[cfg(test)]
 mod tests {
-    use crate::{DensityAltitude, GeopotentialAltitude, AltimeterSetting};
+    use crate::{AltimeterSetting, DensityAltitude, GeopotentialAltitude};
     use uom::si::f64::*;
     use uom::si::length::{foot, meter};
     use uom::si::pressure::{hectopascal, inch_of_mercury};
@@ -229,7 +328,10 @@ mod tests {
     use uom::si::temperature_interval::kelvin as diff_kelvin;
     use uom::si::thermodynamic_temperature::{degree_celsius, kelvin};
 
-    fn temperature_difference(left: ThermodynamicTemperature, right: ThermodynamicTemperature) -> TemperatureInterval {
+    fn temperature_difference(
+        left: ThermodynamicTemperature,
+        right: ThermodynamicTemperature,
+    ) -> TemperatureInterval {
         TemperatureInterval::new::<diff_kelvin>(left.get::<kelvin>() - right.get::<kelvin>())
     }
 
@@ -240,13 +342,18 @@ mod tests {
             let expected = $expected;
             let actual = $actual;
             let format = Ratio::format_args(percent, uom::fmt::DisplayStyle::Abbreviation);
-            let expected_interval = TemperatureInterval::new::<diff_kelvin>(expected.get::<kelvin>());
+            let expected_interval =
+                TemperatureInterval::new::<diff_kelvin>(expected.get::<kelvin>());
             let error = (temperature_difference(expected, actual)) / expected_interval;
 
             let allowable = Ratio::new::<percent>(MAX_ERROR_PERCENT);
             println!("Expected: {:?}", expected);
             println!("Actual:   {:?}", actual);
-            println!("Error: {} (Allowed: {})", format.with(error), format.with(allowable));
+            println!(
+                "Error: {} (Allowed: {})",
+                format.with(error),
+                format.with(allowable)
+            );
 
             assert!(error < allowable);
         };
@@ -257,11 +364,11 @@ mod tests {
             let expected = $expected;
             let actual = $actual;
             let format = Ratio::format_args(percent, uom::fmt::DisplayStyle::Abbreviation);
-            let error = if expected == actual { 
-                Ratio::new::<percent>(0.) 
+            let error = if expected == actual {
+                Ratio::new::<percent>(0.)
             // } else if expected.is_zero() {
             //     (actual - expected) / actual
-            } else { 
+            } else {
                 (expected - actual) / expected
             };
 
@@ -269,7 +376,11 @@ mod tests {
 
             println!("Expected: {:?}", expected);
             println!("Actual:   {:?}", actual);
-            println!("Error: {} (Allowed: {})", format.with(error), format.with(allowable));
+            println!(
+                "Error: {} (Allowed: {})",
+                format.with(error),
+                format.with(allowable)
+            );
 
             assert!(error < allowable);
         };
@@ -290,7 +401,7 @@ mod tests {
             actual: super::standard_temperature(GeopotentialAltitude::new::<meter>(-4_250.)).unwrap(),
         );
     }
-    
+
     #[test]
     fn table3() {
         check_temps_within_error!(
@@ -339,7 +450,6 @@ mod tests {
         );
     }
 
-
     #[test]
     fn pressure_altitude_higher_altitude() {
         check_within_error!(
@@ -350,7 +460,9 @@ mod tests {
 
     #[test]
     fn density_altitude_dry() {
-        dbg!(super::standard_pressure(GeopotentialAltitude::new::<meter>(1234.)));
+        dbg!(super::standard_pressure(
+            GeopotentialAltitude::new::<meter>(1234.)
+        ));
         check_within_error!(
             expected: DensityAltitude::new::<meter>(1234.),
             actual: super::density_altitude(Pressure::new::<hectopascal>(898.5), ThermodynamicTemperature::new::<degree_celsius>(15.), ThermodynamicTemperature::new::<kelvin>(1.)),
@@ -359,7 +471,9 @@ mod tests {
 
     #[test]
     fn density_altitude_odd() {
-        dbg!(super::standard_pressure(GeopotentialAltitude::new::<foot>(13098.)));
+        dbg!(super::standard_pressure(GeopotentialAltitude::new::<foot>(
+            13098.
+        )));
         check_within_error!(
             expected: DensityAltitude::new::<foot>(12098.),
             actual: super::density_altitude(Pressure::new::<hectopascal>(724.2), ThermodynamicTemperature::new::<degree_celsius>(30.), ThermodynamicTemperature::new::<degree_celsius>(23.)),

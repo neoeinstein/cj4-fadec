@@ -2,25 +2,69 @@
 
 #![allow(dead_code, missing_docs)]
 
+use num_derive::{FromPrimitive, ToPrimitive};
+use num_traits::{FromPrimitive, ToPrimitive};
 use std::ffi::c_void;
 use std::fmt;
 use std::os::raw::c_char;
-use num_derive::{FromPrimitive, ToPrimitive};
-use num_traits::{FromPrimitive, ToPrimitive};
 
 extern "C" {
-    pub fn SimConnect_Open(handle: *mut SimConnectHandle, name: *const c_char, wnd: WindowHandle, event: u32, event_handle: Handle, config_index: u32) -> HResult;
+    pub fn SimConnect_Open(
+        handle: *mut SimConnectHandle,
+        name: *const c_char,
+        wnd: WindowHandle,
+        event: u32,
+        event_handle: Handle,
+        config_index: u32,
+    ) -> HResult;
     pub fn SimConnect_Close(handle: SimConnectHandle) -> HResult;
-    pub fn SimConnect_CallDispatch(handle: SimConnectHandle, dispatch: DispatchProc, context: *mut c_void) -> HResult;
-    pub fn SimConnect_GetNextDispatch(handle: SimConnectHandle, header: *mut *const ReceiveHeader, size: *mut u32) -> HResult;
-    pub fn SimConnect_AddToDataDefinition(handle: SimConnectHandle, data_definition_id: RawDataDefinitionId, name: *const c_char, units: *const c_char, datum_type: RawDataType, epsilon: f64, datum_id: u32) -> HResult;
-    pub fn SimConnect_MapClientEventToSimEvent(handle: SimConnectHandle, event_id: RawEventId, event_name: *const c_char) -> HResult;
-    pub fn SimConnect_AddClientEventToNotificationGroup(handle: SimConnectHandle, group_id: RawNotificationGroupId, event_id: RawEventId, maskable: bool) -> HResult;
-    pub fn SimConnect_SetNotificationGroupPriority(handle: SimConnectHandle, group_id: RawNotificationGroupId, priority: NotificationGroupPriority) -> HResult;
-    pub fn SimConnect_SetDataOnSimObject(handle: SimConnectHandle, data_definition: RawDataDefinitionId, object_id: RawObjectId, flags: RawDataSetFlag, array_count: u32, unit_size: u32, data_set: *const c_void) -> HResult;
+    pub fn SimConnect_CallDispatch(
+        handle: SimConnectHandle,
+        dispatch: DispatchProc,
+        context: *mut c_void,
+    ) -> HResult;
+    pub fn SimConnect_GetNextDispatch(
+        handle: SimConnectHandle,
+        header: *mut *const ReceiveHeader,
+        size: *mut u32,
+    ) -> HResult;
+    pub fn SimConnect_AddToDataDefinition(
+        handle: SimConnectHandle,
+        data_definition_id: RawDataDefinitionId,
+        name: *const c_char,
+        units: *const c_char,
+        datum_type: RawDataType,
+        epsilon: f64,
+        datum_id: u32,
+    ) -> HResult;
+    pub fn SimConnect_MapClientEventToSimEvent(
+        handle: SimConnectHandle,
+        event_id: RawEventId,
+        event_name: *const c_char,
+    ) -> HResult;
+    pub fn SimConnect_AddClientEventToNotificationGroup(
+        handle: SimConnectHandle,
+        group_id: RawNotificationGroupId,
+        event_id: RawEventId,
+        maskable: bool,
+    ) -> HResult;
+    pub fn SimConnect_SetNotificationGroupPriority(
+        handle: SimConnectHandle,
+        group_id: RawNotificationGroupId,
+        priority: NotificationGroupPriority,
+    ) -> HResult;
+    pub fn SimConnect_SetDataOnSimObject(
+        handle: SimConnectHandle,
+        data_definition: RawDataDefinitionId,
+        object_id: RawObjectId,
+        flags: RawDataSetFlag,
+        array_count: u32,
+        unit_size: u32,
+        data_set: *const c_void,
+    ) -> HResult;
 }
 
-type DispatchProc = extern fn(*const ReceiveHeader, u32, *mut c_void);
+type DispatchProc = extern "C" fn(*const ReceiveHeader, u32, *mut c_void);
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 #[repr(C)]
@@ -52,7 +96,12 @@ pub struct Version {
 
 impl ReceiveOpen {
     pub fn application_name(&self) -> &str {
-        let null = self.application_name.iter().copied().position(|x| x == 0x00).unwrap_or(self.application_name.len());
+        let null = self
+            .application_name
+            .iter()
+            .copied()
+            .position(|x| x == 0x00)
+            .unwrap_or(self.application_name.len());
         let slice = &self.application_name[0..null];
         std::str::from_utf8(slice).expect("Application name should be valid UTF-8")
     }
@@ -92,11 +141,11 @@ pub struct RawEventId(pub u32);
 pub struct NotificationGroupPriority(u32);
 
 impl NotificationGroupPriority {
-    pub const HIGHEST: Self              = Self(         1);      // highest priority
-    pub const HIGHEST_MASKABLE: Self     = Self(  10000000);      // highest priority that allows events to be masked
-    pub const STANDARD: Self             = Self(1900000000);      // standard priority
-    pub const DEFAULT: Self              = Self(2000000000);      // default priority
-    pub const LOWEST: Self               = Self(4000000000);      // priorities lower than this will be ignored
+    pub const HIGHEST: Self = Self(1); // highest priority
+    pub const HIGHEST_MASKABLE: Self = Self(10000000); // highest priority that allows events to be masked
+    pub const STANDARD: Self = Self(1900000000); // standard priority
+    pub const DEFAULT: Self = Self(2000000000); // default priority
+    pub const LOWEST: Self = Self(4000000000); // priorities lower than this will be ignored
 
     pub const fn custom(priority: u32) -> Self {
         Self(priority)
@@ -117,7 +166,7 @@ pub struct RawDataSetFlag(u32);
 #[derive(Clone, Copy, Debug, PartialEq, Eq, FromPrimitive, ToPrimitive)]
 pub enum DataSetFlag {
     Default = 0x00000000,
-    Tagged = 0x00000001,      // data is in tagged format
+    Tagged = 0x00000001, // data is in tagged format
 }
 
 impl DataSetFlag {
@@ -193,26 +242,26 @@ pub struct RawDataType(u32);
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, FromPrimitive, ToPrimitive)]
 pub enum DataType {
-    Invalid,        // invalid data type
-    Int32,          // 32-bit integer number
-    Int64,          // 64-bit integer number
-    Float32,        // 32-bit floating-point number (float)
-    Float64,        // 64-bit floating-point number (double)
-    String8,        // 8-byte string
-    String32,       // 32-byte string
-    String64,       // 64-byte string
-    String128,      // 128-byte string
-    String256,      // 256-byte string
-    String260,      // 260-byte string
-    StringV,        // variable-length string
+    Invalid,   // invalid data type
+    Int32,     // 32-bit integer number
+    Int64,     // 64-bit integer number
+    Float32,   // 32-bit floating-point number (float)
+    Float64,   // 64-bit floating-point number (double)
+    String8,   // 8-byte string
+    String32,  // 32-byte string
+    String64,  // 64-byte string
+    String128, // 128-byte string
+    String256, // 256-byte string
+    String260, // 260-byte string
+    StringV,   // variable-length string
 
-    InitPosition,   // see SIMCONNECT_DATA_INITPOSITION
-    MarkerState,    // see SIMCONNECT_DATA_MARKERSTATE
-    Waypoint,       // see SIMCONNECT_DATA_WAYPOINT
-    LatLongAlt,      // see SIMCONNECT_DATA_LATLONALT
-    Xyz,            // see SIMCONNECT_DATA_XYZ
+    InitPosition, // see SIMCONNECT_DATA_INITPOSITION
+    MarkerState,  // see SIMCONNECT_DATA_MARKERSTATE
+    Waypoint,     // see SIMCONNECT_DATA_WAYPOINT
+    LatLongAlt,   // see SIMCONNECT_DATA_LATLONALT
+    Xyz,          // see SIMCONNECT_DATA_XYZ
 
-    Max,             // enum limit
+    Max, // enum limit
 }
 
 impl DataType {

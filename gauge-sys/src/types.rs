@@ -40,7 +40,7 @@ pub trait AircraftVariable {
 }
 
 /// Produces a base new aircraft variable
-/// 
+///
 /// Generally you want to use `indexed_aircraft_variable` or
 /// `unindexed_aircraft_variable` instead.
 #[macro_export]
@@ -53,15 +53,18 @@ macro_rules! aircraft_variable {
         impl $ty {
             const VARIABLE_NAME: &'static str = concat!($name, "\0");
         }
-        
+
         impl $crate::AircraftVariable for $ty {
             type Unit = $unit;
 
             #[inline]
             fn as_raw_aircraft_variable() -> $crate::ffi::RawAircraftVariable {
-                static RAW_UNIT_VALUE: $crate::once_cell::Lazy<$crate::ffi::RawAircraftVariable> = $crate::once_cell::Lazy::new(|| unsafe { 
-                    $crate::ffi::RawAircraftVariable::from_aircraft_variable_enum_str($ty::VARIABLE_NAME)
-                });
+                static RAW_UNIT_VALUE: $crate::once_cell::Lazy<$crate::ffi::RawAircraftVariable> =
+                    $crate::once_cell::Lazy::new(|| unsafe {
+                        $crate::ffi::RawAircraftVariable::from_aircraft_variable_enum_str(
+                            $ty::VARIABLE_NAME,
+                        )
+                    });
                 *RAW_UNIT_VALUE
             }
         }
@@ -69,7 +72,7 @@ macro_rules! aircraft_variable {
 }
 
 /// Provides access to an aircraft variable that is indexed
-/// 
+///
 /// Many variables relating to aircraft engines will be indexed.
 #[macro_export]
 macro_rules! indexed_aircraft_variable {
@@ -126,9 +129,9 @@ macro_rules! named_variable {
             #[inline]
             fn set_raw(value: <Self as $crate::NamedVariable>::Value) {
                 $crate::ffi::RawNamedVariable::set(<Self as $crate::NamedVariable>::as_raw_named_variable(), value.into())
-            }        
+            }
         }
-        
+
         impl $crate::NamedVariable for $ty {
             type Value = $val;
 

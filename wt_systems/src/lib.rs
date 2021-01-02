@@ -1,5 +1,5 @@
 //! # Working Title General Purpose Systems
-//! 
+//!
 //! A collection of systems that can be used by multiple aircraft
 
 #![warn(
@@ -8,10 +8,7 @@
     unused_imports,
     unused_qualifications
 )]
-#![deny(
-    missing_debug_implementations,
-    unused_must_use
-)]
+#![deny(missing_debug_implementations, unused_must_use)]
 
 mod pid;
 
