@@ -1,5 +1,4 @@
 use crate::{atmosphere::Layer, constants};
-use uom::typenum::{P1, Z0};
 use uom::{
     si::{
         f64::*,

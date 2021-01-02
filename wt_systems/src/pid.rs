@@ -93,8 +93,8 @@ where
             gain_proportion: self.gain_proportion.clone(),
             gain_integral: self.gain_integral.clone(),
             gain_derivative: self.gain_derivative.clone(),
-            output_range: self.output_range.clone(),
-            derivative_range: self.derivative_range.clone(),
+            output_range: self.output_range,
+            derivative_range: self.derivative_range,
             tolerance: self.tolerance.clone(),
         }
     }
