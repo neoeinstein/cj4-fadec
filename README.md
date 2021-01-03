@@ -63,7 +63,7 @@ Embedded tests are run with:
 cargo test --all
 ```
 
-### Lints and Formatting
+### Lints, Formatting, and Documentation
 
 Lints are checked using:
 
@@ -79,3 +79,15 @@ cargo fmt --all
 
 CI builds require all code to be properly formatted and build with out any
 Clippy warnings.
+
+Documentation is generated with:
+
+```sh
+cargo doc --all --no-deps
+```
+
+Cargo can automatically open the generated documentation for you in a browser if
+you also include the `--open` flag. Adding the `--document-private-items` will
+also produce documentation for items that aren't publicly exposed. If generating
+documentation for all crates in the dependency tree is desired, remove
+`--no-deps`.
