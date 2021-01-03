@@ -9,8 +9,8 @@ on: [push, pull_request]
 name: CI
 
 jobs:
-  check:
-    name: Check
+  build-debug:
+    name: Build Debug
     runs-on: ubuntu-latest
     steps:
       - name: Checkout sources
@@ -24,11 +24,56 @@ jobs:
           toolchain: stable
           override: true
 
-      - name: Run cargo check
+      - name: Install cargo-wasi
         uses: actions-rs/cargo@v1
         with:
-          command: check
-          args: --all --target=wasm32-wasi
+          command: install
+          args: cargo-wasi
+
+      - name: Run cargo build
+        uses: actions-rs/cargo@v1
+        with:
+          command: wasi
+          args: build -p wt_cj4_wasm
+
+      - name: Upload WASM
+        uses: actions/upload-artifact@v2
+        with:
+          name: WASM module (Debug)
+          path: target/wasm32-wasi/debug/wt_cj4_wasm.wasm
+
+  build-release:
+    name: Build Release
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout sources
+        uses: actions/checkout@v2
+
+      - name: Install stable toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          target: wasm32-wasi
+          toolchain: stable
+          override: true
+
+      - name: Install cargo-wasi
+        uses: actions-rs/cargo@v1
+        with:
+          command: install
+          args: cargo-wasi
+
+      - name: Run cargo build
+        uses: actions-rs/cargo@v1
+        with:
+          command: wasi
+          args: build -p wt_cj4_wasm --release
+
+      - name: Upload WASM (Release)
+        uses: actions/upload-artifact@v2
+        with:
+          name: WASM module (Release)
+          path: target/wasm32-wasi/release/wt_cj4_wasm.wasm
 
   test:
     name: Test Suite
