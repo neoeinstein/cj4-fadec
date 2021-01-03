@@ -7,6 +7,7 @@
     unused_qualifications
 )]
 #![deny(missing_debug_implementations, unused_must_use)]
+#![forbid(unsafe_code)]
 
 pub mod control_params;
 pub mod engines;

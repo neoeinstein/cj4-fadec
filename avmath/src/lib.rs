@@ -10,6 +10,7 @@
     unused_qualifications
 )]
 #![deny(missing_debug_implementations, unused_must_use)]
+#![forbid(unsafe_code)]
 
 // #[macro_use]
 // extern crate uom;

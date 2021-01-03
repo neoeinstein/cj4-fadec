@@ -9,6 +9,7 @@
     unused_qualifications
 )]
 #![deny(missing_debug_implementations, unused_must_use)]
+#![forbid(unsafe_code)]
 
 mod pid;
 
