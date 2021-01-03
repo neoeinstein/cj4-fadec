@@ -15,10 +15,7 @@ running the following command:
 cargo install cargo-wasi
 ```
 
-As a result, running `wasm-opt` has been disabled, which means we miss out on a
-few optimizations that would be available from the tool.
-
-Compilation can be done by running:
+Once the `cargo-wasi` tool is installed, the module can be compiled by running:
 
 ```sh
 cargo wasi build -p wt_cj4_wasm
