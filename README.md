@@ -1,5 +1,12 @@
 # Working Title CJ4 Web Assembly module
 
+[![Build](https://github.com/neoeinstein/cj4-fadec/workflows/Build/badge.svg?branch=main&event=push)][Build]
+[![Docs](https://img.shields.io/badge/docs-github-informational)][Docs]
+[![Experimental](https://img.shields.io/badge/support-experimental-important)][Docs]
+
+  [Build]: https://github.com/neoeinstein/cj4-fadec/actions
+  [Docs]: https://neoeinstein.github.io/cj4-fadec/wt_cj4_wasm/
+
 ## Orientation
 
 ### Integration with MSFS
