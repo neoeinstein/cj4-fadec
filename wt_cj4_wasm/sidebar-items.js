@@ -1,0 +1,1 @@
+initSidebarItems({"fn":[["FdGauge_gauge_callback","The primary entry point for Microsoft Flight Simulator modules built on top of the legacy Gauge API. This function will be called externally by the simulator as certain events occur."]]});

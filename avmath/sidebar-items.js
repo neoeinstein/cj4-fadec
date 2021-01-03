@@ -1,0 +1,1 @@
+initSidebarItems({"mod":[["calculations","Calculations related to the ICAO Standard Atmosphere"],["constants","Constant values used as the basis for many calculations"],["isa","Implementations of units based on the International Standard of Units using quantities relevant to the field of aviation"],["si","Type aliases for SI units"]]});

@@ -1,0 +1,1 @@
+initSidebarItems({"enum":[["ThrottleMode","The FADEC throttle mode"]],"struct":[["ThrottleAxis","The position of the throttle axis"],["ThrottlePercent","A throttle position as a percentage of full"],["ThrustValue","A thrust value for the CJ4 in poundals"]]});

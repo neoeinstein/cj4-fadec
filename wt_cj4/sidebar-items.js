@@ -1,0 +1,1 @@
+initSidebarItems({"mod":[["control_params","Control parameters for managing the CJ4"],["engines","Structures for treating the dual engine system of the CJ4 jointly or independently as required"]],"struct":[["FadecController","The CJ4 FADEC controller"]]});
