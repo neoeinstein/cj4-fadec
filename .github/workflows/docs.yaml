@@ -1,0 +1,40 @@
+
+on:
+  push:
+    branches:
+      - main
+
+name: Generate Docs
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout sources
+        uses: actions/checkout@v2
+
+      - name: Install stable toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          target: wasm32-wasi
+          toolchain: stable
+          override: true
+
+      - name: Run cargo build
+        uses: actions-rs/cargo@v1
+        with:
+          command: doc
+          args: --workspace
+
+      - name: Prepare docs folder
+        run: |
+          sudo chown -R $(whoami) target/doc
+          touch target/doc/.nojekyll
+
+      - name: Deploy documentation branch
+        uses: JamesIves/github-pages-deploy-action@3.7.1
+        with:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          BRANCH: gh-pages
+          FOLDER: target/doc
