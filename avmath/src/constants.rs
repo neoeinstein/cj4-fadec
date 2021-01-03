@@ -2,12 +2,11 @@
 
 #![allow(non_snake_case)]
 
-use crate::types::{InvLapseRate, LapseRate};
+use crate::si::{InvLapseRate, LapseRate};
 use std::ops::Div;
 use uom::si::{
     acceleration::meter_per_second_squared,
     amount_of_substance::kilomole,
-    available_energy::joule_per_kilogram,
     f64::*,
     length::meter,
     mass_density::kilogram_per_cubic_meter,
@@ -24,6 +23,8 @@ use uom::si::{
 /// Avogadro's number (N<sub>A</sub>)
 #[inline(always)]
 pub fn avogadros_number() -> <f64 as Div<AmountOfSubstance>>::Output {
+    // This is actually defined as exactly  6.022_140_76 × 10²³
+    // 6.022_140_76_e23 / AmountOfSubstance::new::<mole>(1.)
     602.257_e24 / AmountOfSubstance::new::<kilomole>(1.)
 }
 
@@ -50,7 +51,7 @@ pub fn R() -> <MolarEnergy as Div<ThermodynamicTemperature>>::Output {
     MolarEnergy::new::<joule_per_mole>(8.31432) / ThermodynamicTemperature::new::<kelvin>(1.)
 }
 
-/// Specific heat capacity of dry air (R<sub>d</sub> / M<sub>d</sub>)
+/// Specific heat capacity of dry air (R / M<sub>d</sub>)
 #[inline(always)]
 pub fn Rd() -> SpecificHeatCapacity {
     SpecificHeatCapacity::new::<joule_per_kilogram_kelvin>(287.052_87)
@@ -125,7 +126,7 @@ pub fn SigmaSquared() -> Area {
 /// As defined by the World Meteorological Organization
 #[inline(always)]
 pub fn standard_geopotential_metre() -> AvailableEnergy {
-    AvailableEnergy::new::<joule_per_kilogram>(9.806_65)
+    Length::new::<meter>(1.) * standard_gravity_msl()
 }
 
 /// Radius of the earth (r)
@@ -153,16 +154,19 @@ pub fn standard_pressure_msl() -> Pressure {
 }
 
 /// Standard density of dry air at mean sea level (ρ₀)
+#[inline(always)]
 pub fn standard_density_msl() -> MassDensity {
     MassDensity::new::<kilogram_per_cubic_meter>(1.225)
 }
 
 /// Standard temperature of dry air at mean sea level (T₀)
+#[inline(always)]
 pub fn standard_temperature_msl() -> ThermodynamicTemperature {
     ThermodynamicTemperature::new::<celsius>(15.)
 }
 
 /// Relative humidity of dry air
+#[inline(always)]
 pub fn dry_air_relative_humidity() -> Ratio {
     Ratio::new::<ratio>(0.)
 }

@@ -73,8 +73,8 @@ impl Thrust {
 }
 
 impl Altitude {
-    pub fn read() -> avmath::PressureAltitude {
-        avmath::PressureAltitude::new::<foot>(Self::read_raw())
+    pub fn read() -> avmath::isa::PressureAltitude {
+        avmath::isa::PressureAltitude::new::<foot>(Self::read_raw())
     }
 }
 

@@ -8,5 +8,5 @@ edition = "2018"
 
 [dependencies]
 avmath = { path = "../avmath" }
-uom = "0.30.0"
+uom = { version = "0.30.0", default-features = false, features = ["f64", "si"]}
 wt_systems = { path = "../wt_systems" }

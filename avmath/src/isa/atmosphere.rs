@@ -1,6 +1,7 @@
 //! Layers of the ICAO International Standard Atmosphere
 
-use crate::{GeopotentialAltitude, LapseRate};
+use super::GeopotentialAltitude;
+use crate::si::LapseRate;
 use once_cell::sync::Lazy;
 use std::ops::Range;
 use uom::si::{
@@ -138,7 +139,7 @@ fn construct_layers() -> [Layer; 8] {
             pressure: Pressure::new::<hectopascal>(8.68014e0)
                 ..Pressure::new::<hectopascal>(1.10906e0),
             density: MassDensity::new::<kilogram_per_cubic_meter>(1.32249e-2)
-                ..MassDensity::new::<kilogram_per_cubic_meter>(1.42752e0),
+                ..MassDensity::new::<kilogram_per_cubic_meter>(1.42752e-3),
             base_temperature: ThermodynamicTemperature::new::<kelvin>(228.650),
             lapse_rate: Some(
                 TemperatureInterval::new::<diff_kelvin>(2.8) / Length::new::<kilometer>(1.),
@@ -147,9 +148,9 @@ fn construct_layers() -> [Layer; 8] {
         Layer {
             altitude: GeopotentialAltitude::new::<kilometer>(47.)
                 ..GeopotentialAltitude::new::<kilometer>(51.),
-            pressure: Pressure::new::<hectopascal>(6.69384e-1)
-                ..Pressure::new::<hectopascal>(1.10906e0),
-            density: MassDensity::new::<kilogram_per_cubic_meter>(1.42752e0)
+            pressure: Pressure::new::<hectopascal>(1.10906e0)
+                ..Pressure::new::<hectopascal>(6.69384e-1),
+            density: MassDensity::new::<kilogram_per_cubic_meter>(1.42752e-3)
                 ..MassDensity::new::<kilogram_per_cubic_meter>(8.61600e-4),
             base_temperature: ThermodynamicTemperature::new::<kelvin>(270.650),
             lapse_rate: None,

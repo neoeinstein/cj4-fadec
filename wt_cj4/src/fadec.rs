@@ -1,7 +1,7 @@
 //! The CJ4 FADEC controller module
 
 use crate::control_params::{ThrottleAxis, ThrottleMode, ThrottlePercent, ThrustValue};
-use avmath::PressureAltitude;
+use avmath::isa::PressureAltitude;
 use uom::fmt::DisplayStyle::Abbreviation;
 use uom::num_traits::{clamp, clamp_min};
 use uom::si::{
@@ -42,6 +42,7 @@ impl FadecController {
     /// Steps the FADEC controller to command the virtual throttle lever
     /// position changes required to obtain the desired thrust based on the
     /// current throttle mode
+    #[allow(clippy::too_many_arguments)] // TODO reduce this out some
     pub fn get_desired_throttle(
         &mut self,
         current_throttle: Ratio,
