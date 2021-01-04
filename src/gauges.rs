@@ -4,8 +4,7 @@ use simconnect_sys::{ffi::HResult, EventType, NotificationGroup};
 use std::cell::Cell;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
-use uom::fmt::DisplayStyle::Abbreviation;
-use uom::si::{f64::Time, ratio::ratio, time::second};
+use uom::si::{f64::Time, time::second};
 use wt_cj4::{
     control_params::{ThrottleAxis, ThrottleMode, ThrottlePercent},
     engines::{EngineData, EngineNumber},
