@@ -508,6 +508,12 @@
 <span id="505">505</span>
 <span id="506">506</span>
 <span id="507">507</span>
+<span id="508">508</span>
+<span id="509">509</span>
+<span id="510">510</span>
+<span id="511">511</span>
+<span id="512">512</span>
+<span id="513">513</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="kw">use</span> <span class="ident">serde</span>::{<span class="ident">Deserialize</span>, <span class="ident">Serialize</span>};
 <span class="kw">use</span> <span class="ident">std</span>::{<span class="ident">fmt</span>, <span class="ident">ops</span>};
@@ -549,10 +555,13 @@
 <span class="doccomment">/// };</span>
 <span class="doccomment">/// ```</span>
 <span class="attribute">#[<span class="ident">cfg_attr</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;serde&quot;</span>, <span class="ident">derive</span>(<span class="ident">Serialize</span>, <span class="ident">Deserialize</span>))]</span>
-<span class="attribute">#[<span class="ident">cfg_attr</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;serde&quot;</span>, <span class="ident">serde</span>(<span class="ident">bound</span>(
-    <span class="ident">serialize</span> <span class="op">=</span> <span class="string">&quot;In: Serialize, Proportion&lt;Ratio, In&gt;: Serialize, Integral&lt;Ratio, In, Time&gt;: Serialize, Derivative&lt;Time, In&gt;: Serialize&quot;</span>,
-    <span class="ident">deserialize</span> <span class="op">=</span> <span class="string">&quot;for&lt;&#39;d&gt; In: Deserialize&lt;&#39;d&gt;, for&lt;&#39;d&gt; Proportion&lt;Ratio, In&gt;: Deserialize&lt;&#39;d&gt;, for&lt;&#39;d&gt; Integral&lt;Ratio, In, Time&gt;: Deserialize&lt;&#39;d&gt;, for&lt;&#39;d&gt; Derivative&lt;Time, In&gt;: Deserialize&lt;&#39;d&gt;&quot;</span>,
-)))]</span>
+<span class="attribute">#[<span class="ident">cfg_attr</span>(
+    <span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;serde&quot;</span>,
+    <span class="ident">serde</span>(<span class="ident">bound</span>(
+        <span class="ident">serialize</span> <span class="op">=</span> <span class="string">&quot;In: Serialize, Proportion&lt;Ratio, In&gt;: Serialize, Integral&lt;Ratio, In, Time&gt;: Serialize, Derivative&lt;Time, In&gt;: Serialize&quot;</span>,
+        <span class="ident">deserialize</span> <span class="op">=</span> <span class="string">&quot;for&lt;&#39;d&gt; In: Deserialize&lt;&#39;d&gt;, for&lt;&#39;d&gt; Proportion&lt;Ratio, In&gt;: Deserialize&lt;&#39;d&gt;, for&lt;&#39;d&gt; Integral&lt;Ratio, In, Time&gt;: Deserialize&lt;&#39;d&gt;, for&lt;&#39;d&gt; Derivative&lt;Time, In&gt;: Deserialize&lt;&#39;d&gt;&quot;</span>,
+    ))
+)]</span>
 <span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">PidConfiguration</span><span class="op">&lt;</span><span class="ident">In</span><span class="op">&gt;</span>
 <span class="kw">where</span>
     <span class="ident">Ratio</span>: <span class="ident">ops</span>::<span class="ident">Div</span><span class="op">&lt;</span><span class="ident">In</span><span class="op">&gt;</span> <span class="op">+</span> <span class="ident">ops</span>::<span class="ident">Div</span><span class="op">&lt;</span><span class="ident">RetainedError</span><span class="op">&lt;</span><span class="ident">Time</span>, <span class="ident">In</span><span class="op">&gt;</span><span class="op">&gt;</span>,
@@ -691,10 +700,13 @@
 <span class="doccomment">/// );</span>
 <span class="doccomment">/// ```</span>
 <span class="attribute">#[<span class="ident">cfg_attr</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;serde&quot;</span>, <span class="ident">derive</span>(<span class="ident">Serialize</span>, <span class="ident">Deserialize</span>))]</span>
-<span class="attribute">#[<span class="ident">cfg_attr</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;serde&quot;</span>, <span class="ident">serde</span>(<span class="ident">bound</span>(
-    <span class="ident">serialize</span> <span class="op">=</span> <span class="string">&quot;In: Serialize, RetainedError&lt;Time, In&gt;: Serialize&quot;</span>,
-    <span class="ident">deserialize</span> <span class="op">=</span> <span class="string">&quot;for&lt;&#39;d&gt; In: Deserialize&lt;&#39;d&gt;, for&lt;&#39;d&gt; RetainedError&lt;Time, In&gt;: Deserialize&lt;&#39;d&gt;&quot;</span>,
-)))]</span>
+<span class="attribute">#[<span class="ident">cfg_attr</span>(
+    <span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;serde&quot;</span>,
+    <span class="ident">serde</span>(<span class="ident">bound</span>(
+        <span class="ident">serialize</span> <span class="op">=</span> <span class="string">&quot;In: Serialize, RetainedError&lt;Time, In&gt;: Serialize&quot;</span>,
+        <span class="ident">deserialize</span> <span class="op">=</span> <span class="string">&quot;for&lt;&#39;d&gt; In: Deserialize&lt;&#39;d&gt;, for&lt;&#39;d&gt; RetainedError&lt;Time, In&gt;: Deserialize&lt;&#39;d&gt;&quot;</span>,
+    ))
+)]</span>
 <span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">PidController</span><span class="op">&lt;</span><span class="ident">In</span><span class="op">&gt;</span>
 <span class="kw">where</span>
     <span class="ident">Ratio</span>: <span class="ident">ops</span>::<span class="ident">Div</span><span class="op">&lt;</span><span class="ident">In</span><span class="op">&gt;</span> <span class="op">+</span> <span class="ident">ops</span>::<span class="ident">Div</span><span class="op">&lt;</span><span class="ident">RetainedError</span><span class="op">&lt;</span><span class="ident">Time</span>, <span class="ident">In</span><span class="op">&gt;</span><span class="op">&gt;</span>,
