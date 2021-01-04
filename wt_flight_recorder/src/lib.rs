@@ -3,37 +3,45 @@ mod flight_data_recorder;
 pub use flight_data_recorder::FlightDataRecorder;
 
 pub fn create_recorder() -> Result<FlightDataRecorder, Box<dyn std::error::Error>> {
+    const TEST_PATHS: &[&str] = &[
+        r#"\work"#,
+        r#"/work"#,
+        r#"work"#,
+        r#".\"#,
+        r#"./"#,
+        r#"."#,
+        r#".\work"#,
+        r#"/"#,
+        r#"\"#,
+        r#""#,
+    ];
+
     fn test_exists(path: &str) {
         let exists = std::path::Path::new(path).exists();
         println!("Does {} exist? {}", path, exists);
-        match std::path::Path::new(path).canonicalize() {
-            Ok(path) => println!(
-                "Does {} exist? {}",
-                path.to_str().unwrap_or("<invalid UTF-8>"),
-                path.exists()
-            ),
-            Err(err) => println!("Cannot canonicalize {}; Error: {}", path, err),
+    }
+
+    fn try_read_dir(path: &str) {
+        let dir = std::fs::read_dir(r#"\work"#);
+        let d = match dir {
+            Ok(d) => d,
+            Err(err) => {
+                println!("Error reading {}: {}", path, err);
+                return;
+            }
+        };
+        for entry in d {
+            println!("Found entry");
+            match entry {
+                Ok(e) => println!("Entry: {}", e.file_name().to_str().unwrap_or("<non UTF-8>")),
+                Err(err) => println!("Error reading entry in {}: {}", path, err),
+            }
         }
     }
 
-    test_exists(r#"\work"#);
-    test_exists(r#".\"#);
-    test_exists(r#".\work"#);
-    test_exists(r#"work"#);
-    test_exists(r#"/work"#);
-    test_exists(r#"./"#);
-    test_exists(r#"."#);
-    test_exists(r#"/"#);
-    test_exists(r#"\"#);
-    test_exists(r#""#);
-
-    for entry in std::fs::read_dir(r#"\work"#)? {
-        println!("Found entry");
-        let entry = entry?;
-        println!(
-            "Entry: {}",
-            entry.file_name().to_str().unwrap_or("<non UTF-8>")
-        );
+    for path in TEST_PATHS {
+        test_exists(path);
+        try_read_dir(path);
     }
 
     let file = std::fs::OpenOptions::new()

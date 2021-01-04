@@ -271,7 +271,7 @@ impl FdGauge {
                             }
                         }
 
-                        let last = self.last_throttle_axis.get();
+                        // let last = self.last_throttle_axis.get();
                         // println!(
                         //     "Updated throttles: {} {}",
                         //     last[EngineNumber::Engine1],

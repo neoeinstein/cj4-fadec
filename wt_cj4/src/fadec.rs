@@ -2,14 +2,12 @@
 
 use crate::control_params::{ThrottleAxis, ThrottleMode, ThrottlePercent, ThrustValue};
 use avmath::isa::PressureAltitude;
-use uom::fmt::DisplayStyle::Abbreviation;
 use uom::num_traits::{clamp, clamp_min};
 use uom::si::{
     acceleration::foot_per_second_squared,
     f64::*,
     force::poundal,
     length::foot,
-    mass_density::slug_per_cubic_foot,
     mass_rate::pound_per_second,
     momentum::pound_foot_per_second,
     ratio::{percent, ratio},
@@ -85,15 +83,12 @@ impl FadecController {
                 let thrust_target: Force = if max_effective_thrust < low_altitude_thrust_target {
                     let high_altitude_thrust_loss =
                         calculate_high_altitude_thrust_loss(pressure_altitude);
-                    let high_altitude_thrust_target =
-                        max_effective_thrust - high_altitude_thrust_loss;
+                    max_effective_thrust - high_altitude_thrust_loss
 
-                    // println!(
-                    //     "High altitude thrust target: {:.3}",
-                    //     high_altitude_thrust_target.into_format_args(poundal, Abbreviation)
-                    // );
-
-                    high_altitude_thrust_target
+                // println!(
+                //     "High altitude thrust target: {:.3}",
+                //     high_altitude_thrust_target.into_format_args(poundal, Abbreviation)
+                // );
                 } else {
                     // println!(
                     //     "Low altitude thrust target: {:.3}",
