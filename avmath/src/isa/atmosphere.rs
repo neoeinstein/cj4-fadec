@@ -11,6 +11,7 @@ use uom::si::{
 
 /// A layer of the atmosphere
 #[derive(Clone, Debug)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct Layer {
     /// The altitude range
     pub altitude: Range<GeopotentialAltitude>,

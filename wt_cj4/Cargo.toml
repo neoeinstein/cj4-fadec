@@ -8,5 +8,6 @@ edition = "2018"
 
 [dependencies]
 avmath = { path = "../avmath" }
-uom = { version = "0.30.0", default-features = false, features = ["f64", "si"]}
+uom = { version = "0.30.0", default-features = false, features = ["f64", "std", "si"]}
 wt_systems = { path = "../wt_systems" }
+serde = { version = "1", features = ["derive"] }

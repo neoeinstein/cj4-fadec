@@ -16,13 +16,15 @@ lto = true
 wasm-opt = false
 
 [dependencies]
-avmath = { path = "./avmath" }
+avmath = { path = "./avmath", features = ["serde"] }
 gauge-sys = { path = "./gauge-sys" }
 num-derive = "0.3.3"
 num-traits = "0.2.14"
 parking_lot = "0.11.1"
+serde = { version = "1", features = ["derive"] }
 simconnect-sys = { path = "./simconnect-sys" }
-uom = "0.30.0"
+uom = { version = "0.30.0", default-features = false, features = ["f64", "si", "std", "use_serde"] }
 wt_cj4 = { path = "./wt_cj4" }
+wt_flight_recorder = { path = "./wt_flight_recorder" }
 
 [workspace]

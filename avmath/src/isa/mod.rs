@@ -20,6 +20,7 @@ pub use atmosphere::Layer;
 /// This is the ruler-measured value for altitude. Calculations for standard
 /// atmosphere may require conversion into a [`GeopotentialAltitude`].
 #[derive(Clone, Copy, Debug, PartialEq, PartialOrd)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct GeometricAltitude(Length);
 
 impl GeometricAltitude {
@@ -132,6 +133,7 @@ impl std::ops::Div<Ratio> for GeometricAltitude {
 /// actual linear distances, convert to a [`GeometricAltitude`] prior to
 /// use as a raw length.
 #[derive(Clone, Copy, Debug, PartialEq, PartialOrd)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct GeopotentialAltitude(Length);
 
 impl GeopotentialAltitude {
@@ -319,6 +321,7 @@ impl From<GeopotentialAltitude> for GeometricAltitude {
 
 /// Altitude above mean sea level corrected for non-standard pressure
 #[derive(Clone, Copy, Debug, PartialEq, PartialOrd)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct PressureAltitude(Length);
 
 impl PressureAltitude {
@@ -387,6 +390,7 @@ impl std::ops::Sub for PressureAltitude {
 
 /// Pressure altitude corrected for non-standard temperature and pressure
 #[derive(Clone, Copy, Debug, PartialEq, PartialOrd)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct DensityAltitude(Length);
 
 impl DensityAltitude {

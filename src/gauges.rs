@@ -1,4 +1,5 @@
 use crate::interop;
+use avmath::isa::PressureAltitude;
 use simconnect_sys::{ffi::HResult, EventType, NotificationGroup};
 use std::cell::Cell;
 use std::sync::Arc;
@@ -17,10 +18,18 @@ pub struct FdGauge {
     controller: EngineData<FadecController>,
     last_throttle_axis: Cell<EngineData<ThrottleAxis>>,
     last_update: Instant,
+    recorder: Option<wt_flight_recorder::FlightDataRecorder>,
 }
 
 impl FdGauge {
     pub fn new() -> Result<Self, HResult> {
+        let recorder = match wt_flight_recorder::create_recorder() {
+            Ok(recorder) => Some(recorder),
+            Err(err) => {
+                eprintln!("Error creating flight data recorder: {:?}", err);
+                None
+            }
+        };
         let simconnect = Arc::new(simconnect_sys::SimConnect::new("FdGauge")?);
 
         simconnect.register_notification_group_enum::<interop::NotificationGroup>()?;
@@ -31,6 +40,7 @@ impl FdGauge {
             controller: EngineData::default(),
             last_throttle_axis: Cell::new(EngineData::new(ThrottleAxis::MIN)),
             last_update: Instant::now(),
+            recorder,
         };
 
         println!("All set up: {:?}", gauge);
@@ -53,24 +63,50 @@ impl FdGauge {
             self.last_update = now;
         }
 
+        if let Some(r) = &mut self.recorder {
+            r.publish(&self.controller).ok();
+        }
+
         Ok(())
     }
 
     pub fn update(&mut self, delta_t: Time) {
         let last_throttle_axis = self.last_throttle_axis.get();
-        println!("Most recent throttle values: {:?}", last_throttle_axis);
+        // println!("Most recent throttle values: {:?}", last_throttle_axis);
 
         let intermediate = last_throttle_axis.map(|engine, axis| {
-            println!("Processing {:?}", engine);
+            // println!("Processing {:?}", engine);
             let mode = select_throttle_mode(axis);
             interop::Throttle::set_mode(engine, mode);
-            println!("{:?}: Updated mode to {:?}", engine, mode);
+            // println!("{:?}: Updated mode to {:?}", engine, mode);
 
             let engine_thrust = interop::Thrust::read_by_index(engine);
             let mach_number = interop::AirspeedMach::read();
             let ambient_density = interop::AmbientDensity::read();
             let pressure_altitude = interop::Altitude::read();
             let current_throttle = axis.to_ratio();
+
+            #[derive(serde::Serialize, serde::Deserialize)]
+            struct Data {
+                engine: EngineNumber,
+                thrust: uom::si::f64::Force,
+                mach: uom::si::f64::Ratio,
+                density: uom::si::f64::MassDensity,
+                pressure_altitude: PressureAltitude,
+                throttle_position: uom::si::f64::Ratio,
+            }
+
+            if let Some(r) = &mut self.recorder {
+                r.publish(&Data {
+                    engine,
+                    thrust: engine_thrust,
+                    mach: mach_number,
+                    density: ambient_density,
+                    pressure_altitude,
+                    throttle_position: current_throttle,
+                })
+                .ok();
+            }
 
             let (_, new_throttle) = self.controller[engine].get_desired_throttle(
                 current_throttle,
@@ -81,17 +117,17 @@ impl FdGauge {
                 pressure_altitude,
                 delta_t,
             );
-            println!(
-                "{:?}: Current throttle: {:.4}, New throttle: {:+.4}",
-                engine,
-                current_throttle.into_format_args(ratio, Abbreviation),
-                new_throttle
-                    .to_ratio()
-                    .into_format_args(ratio, Abbreviation)
-            );
+            // println!(
+            //     "{:?}: Current throttle: {:.4}, New throttle: {:+.4}",
+            //     engine,
+            //     current_throttle.into_format_args(ratio, Abbreviation),
+            //     new_throttle
+            //         .to_ratio()
+            //         .into_format_args(ratio, Abbreviation)
+            // );
 
             let visible_position = calculate_throttle_position(mode, axis);
-            println!("{:?}: Updating throttle to {:?}", engine, visible_position);
+            // println!("{:?}: Updating throttle to {:?}", engine, visible_position);
             interop::Throttle::set_position(engine, visible_position);
 
             new_throttle
@@ -102,7 +138,7 @@ impl FdGauge {
             throttle_engine2: intermediate[EngineNumber::Engine2],
         };
 
-        println!("Update prepared: {:?}", update);
+        // println!("Update prepared: {:?}", update);
 
         if let Err(err) = self.simconnect.update_user_data(&update) {
             println!("Error updating simconnect user data: {:?}", err);
@@ -112,15 +148,15 @@ impl FdGauge {
     fn handle_axis_event(&self, event: &simconnect_sys::ffi::ReceiveEvent) {
         //println!("Received event!");
         if let Some(group) = interop::NotificationGroup::from_ffi(event.group_id) {
-            println!("Picked a group: {:?}", group);
+            // println!("Picked a group: {:?}", group);
             match group {
                 interop::NotificationGroup::Throttle => {
                     if let Some(event_type) = interop::ThrottleEventType::from_ffi(event.event_id) {
-                        println!("Picked an event type: {:?}", event_type);
-                        println!(
-                            "Associated data: {} {} {:x}",
-                            event.data, event.data as i32, event.data
-                        );
+                        // println!("Picked an event type: {:?}", event_type);
+                        // println!(
+                        //     "Associated data: {} {} {:x}",
+                        //     event.data, event.data as i32, event.data
+                        // );
                         match event_type {
                             interop::ThrottleEventType::AxisThrottleSet
                             | interop::ThrottleEventType::AxisThrottleSetEx => {
@@ -237,11 +273,11 @@ impl FdGauge {
                         }
 
                         let last = self.last_throttle_axis.get();
-                        println!(
-                            "Updated throttles: {} {}",
-                            last[EngineNumber::Engine1],
-                            last[EngineNumber::Engine2]
-                        );
+                        // println!(
+                        //     "Updated throttles: {} {}",
+                        //     last[EngineNumber::Engine1],
+                        //     last[EngineNumber::Engine2]
+                        // );
                     }
                 }
             }

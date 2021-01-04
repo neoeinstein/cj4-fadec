@@ -2,6 +2,7 @@
 
 use crate::control_params::{ThrottleAxis, ThrottleMode, ThrottlePercent, ThrustValue};
 use avmath::isa::PressureAltitude;
+use serde::{Deserialize, Serialize};
 use uom::fmt::DisplayStyle::Abbreviation;
 use uom::num_traits::{clamp, clamp_min};
 use uom::si::{
@@ -19,7 +20,7 @@ use uom::si::{
 use wt_systems::{PidConfiguration, PidController};
 
 /// The CJ4 FADEC controller
-#[derive(Debug)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct FadecController {
     climb_pid_config: PidConfiguration<Force>,
     pid_state: PidController<Force>,
@@ -74,7 +75,7 @@ impl FadecController {
                 let max_density_thrust = get_max_density_thrust(ambient_density);
                 let max_effective_thrust = max_density_thrust * thrust_efficiency;
 
-                println!("Raw thrust: {:.3}, Airspeed: {:.3} M, Gross thrust: {:.3}, Ambient density: {:.4}, Max density thrust: {:.3}, altitude: {:.0}", engine_thrust.into_format_args(poundal, Abbreviation), mach_number.into_format_args(ratio, Abbreviation), gross_thrust.into_format_args(poundal, Abbreviation), ambient_density.into_format_args(slug_per_cubic_foot, Abbreviation), max_density_thrust.into_format_args(poundal, Abbreviation), pressure_altitude.remove_context().into_format_args(foot, Abbreviation));
+                // println!("Raw thrust: {:.3}, Airspeed: {:.3} M, Gross thrust: {:.3}, Ambient density: {:.4}, Max density thrust: {:.3}, altitude: {:.0}", engine_thrust.into_format_args(poundal, Abbreviation), mach_number.into_format_args(ratio, Abbreviation), gross_thrust.into_format_args(poundal, Abbreviation), ambient_density.into_format_args(slug_per_cubic_foot, Abbreviation), max_density_thrust.into_format_args(poundal, Abbreviation), pressure_altitude.remove_context().into_format_args(foot, Abbreviation));
 
                 let base_thrust = Force::new::<poundal>(2050.);
                 let low_altitude_thrust_gain =
@@ -87,17 +88,17 @@ impl FadecController {
                     let high_altitude_thrust_target =
                         max_effective_thrust - high_altitude_thrust_loss;
 
-                    println!(
-                        "High altitude thrust target: {:.3}",
-                        high_altitude_thrust_target.into_format_args(poundal, Abbreviation)
-                    );
+                    // println!(
+                    //     "High altitude thrust target: {:.3}",
+                    //     high_altitude_thrust_target.into_format_args(poundal, Abbreviation)
+                    // );
 
                     high_altitude_thrust_target
                 } else {
-                    println!(
-                        "Low altitude thrust target: {:.3}",
-                        low_altitude_thrust_target.into_format_args(poundal, Abbreviation)
-                    );
+                    // println!(
+                    //     "Low altitude thrust target: {:.3}",
+                    //     low_altitude_thrust_target.into_format_args(poundal, Abbreviation)
+                    // );
 
                     low_altitude_thrust_target
                 };
@@ -110,7 +111,7 @@ impl FadecController {
                 );
 
                 self.throttle_selected += output;
-                println!("Thrust target: {:.4} (error: {:+.4}); commanding change of {:+.4} to {:.4} of maximum", thrust_target.into_format_args(poundal, Abbreviation), self.pid_state.prior_error().into_format_args(poundal, Abbreviation), output.into_format_args(ratio, Abbreviation), self.throttle_selected.into_format_args(ratio, Abbreviation));
+                // println!("Thrust target: {:.4} (error: {:+.4}); commanding change of {:+.4} to {:.4} of maximum", thrust_target.into_format_args(poundal, Abbreviation), self.pid_state.prior_error().into_format_args(poundal, Abbreviation), output.into_format_args(ratio, Abbreviation), self.throttle_selected.into_format_args(ratio, Abbreviation));
 
                 (
                     ThrustValue::from_force(thrust_target),
@@ -124,7 +125,7 @@ impl FadecController {
                 let effective_thrust = cruise_normalized_throttle * thrust_efficiency;
 
                 //self.pid_state.reset();
-                println!("Current throttle: {:.4} ({:.4} of cruise; {:.4} effective); Commanding engine to {:.4} of maximum", current_throttle.into_format_args(ratio, Abbreviation), cruise_normalized_throttle.into_format_args(ratio, Abbreviation), effective_thrust.into_format_args(ratio, Abbreviation), effective_thrust.into_format_args(ratio, Abbreviation));
+                // println!("Current throttle: {:.4} ({:.4} of cruise; {:.4} effective); Commanding engine to {:.4} of maximum", current_throttle.into_format_args(ratio, Abbreviation), cruise_normalized_throttle.into_format_args(ratio, Abbreviation), effective_thrust.into_format_args(ratio, Abbreviation), effective_thrust.into_format_args(ratio, Abbreviation));
 
                 (
                     ThrustValue::from_ratio(effective_thrust),

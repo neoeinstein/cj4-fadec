@@ -8,4 +8,8 @@ edition = "2018"
 
 [dependencies]
 once_cell = "1.5.2"
-uom = { version = "0.30.0", default-features = false, features = ["f64", "si"]}
+uom = { version = "0.30.0", default-features = false, features = ["f64", "std", "si"]}
+serde = { version = "1", features = ["derive"], optional = true }
+
+[features]
+use_serde = ["serde", "uom/use_serde"]

@@ -1,5 +1,6 @@
 //! Control parameters for managing the CJ4
 
+use serde::{Deserialize, Serialize};
 use std::{fmt, ops};
 use uom::num_traits::clamp;
 use uom::si::{
@@ -9,7 +10,7 @@ use uom::si::{
 };
 
 /// The FADEC throttle mode
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub enum ThrottleMode {
     /// An engine at effectively idle state
     Undefined,
@@ -54,7 +55,7 @@ impl fmt::Display for ThrottleMode {
 }
 
 /// The position of the throttle axis
-#[derive(Clone, Copy, Debug, PartialEq, PartialOrd)]
+#[derive(Clone, Copy, Debug, PartialEq, PartialOrd, Serialize, Deserialize)]
 #[repr(transparent)]
 pub struct ThrottleAxis(f64);
 
@@ -143,7 +144,7 @@ impl fmt::Display for ThrottleAxis {
 }
 
 /// A thrust value for the CJ4 in poundals
-#[derive(Clone, Copy, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
 #[repr(transparent)]
 pub struct ThrustValue(f64);
 
@@ -187,7 +188,7 @@ impl fmt::Display for ThrustValue {
 }
 
 /// A throttle position as a percentage of full
-#[derive(Clone, Copy, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
 #[repr(transparent)]
 pub struct ThrottlePercent(f64);
 
