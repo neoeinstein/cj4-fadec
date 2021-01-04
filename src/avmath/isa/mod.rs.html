@@ -525,6 +525,10 @@
 <span id="522">522</span>
 <span id="523">523</span>
 <span id="524">524</span>
+<span id="525">525</span>
+<span id="526">526</span>
+<span id="527">527</span>
+<span id="528">528</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="doccomment">//! Implementations of units based on the International Standard of Units</span>
 <span class="doccomment">//! using quantities relevant to the field of aviation</span>
@@ -548,6 +552,7 @@
 <span class="doccomment">/// This is the ruler-measured value for altitude. Calculations for standard</span>
 <span class="doccomment">/// atmosphere may require conversion into a [`GeopotentialAltitude`].</span>
 <span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Clone</span>, <span class="ident">Copy</span>, <span class="ident">Debug</span>, <span class="ident">PartialEq</span>, <span class="ident">PartialOrd</span>)]</span>
+<span class="attribute">#[<span class="ident">cfg_attr</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;serde&quot;</span>, <span class="ident">derive</span>(<span class="ident">serde</span>::<span class="ident">Serialize</span>, <span class="ident">serde</span>::<span class="ident">Deserialize</span>))]</span>
 <span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">GeometricAltitude</span>(<span class="ident">Length</span>);
 
 <span class="kw">impl</span> <span class="ident">GeometricAltitude</span> {
@@ -660,6 +665,7 @@
 <span class="doccomment">/// actual linear distances, convert to a [`GeometricAltitude`] prior to</span>
 <span class="doccomment">/// use as a raw length.</span>
 <span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Clone</span>, <span class="ident">Copy</span>, <span class="ident">Debug</span>, <span class="ident">PartialEq</span>, <span class="ident">PartialOrd</span>)]</span>
+<span class="attribute">#[<span class="ident">cfg_attr</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;serde&quot;</span>, <span class="ident">derive</span>(<span class="ident">serde</span>::<span class="ident">Serialize</span>, <span class="ident">serde</span>::<span class="ident">Deserialize</span>))]</span>
 <span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">GeopotentialAltitude</span>(<span class="ident">Length</span>);
 
 <span class="kw">impl</span> <span class="ident">GeopotentialAltitude</span> {
@@ -847,6 +853,7 @@
 
 <span class="doccomment">/// Altitude above mean sea level corrected for non-standard pressure</span>
 <span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Clone</span>, <span class="ident">Copy</span>, <span class="ident">Debug</span>, <span class="ident">PartialEq</span>, <span class="ident">PartialOrd</span>)]</span>
+<span class="attribute">#[<span class="ident">cfg_attr</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;serde&quot;</span>, <span class="ident">derive</span>(<span class="ident">serde</span>::<span class="ident">Serialize</span>, <span class="ident">serde</span>::<span class="ident">Deserialize</span>))]</span>
 <span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">PressureAltitude</span>(<span class="ident">Length</span>);
 
 <span class="kw">impl</span> <span class="ident">PressureAltitude</span> {
@@ -915,6 +922,7 @@
 
 <span class="doccomment">/// Pressure altitude corrected for non-standard temperature and pressure</span>
 <span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Clone</span>, <span class="ident">Copy</span>, <span class="ident">Debug</span>, <span class="ident">PartialEq</span>, <span class="ident">PartialOrd</span>)]</span>
+<span class="attribute">#[<span class="ident">cfg_attr</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;serde&quot;</span>, <span class="ident">derive</span>(<span class="ident">serde</span>::<span class="ident">Serialize</span>, <span class="ident">serde</span>::<span class="ident">Deserialize</span>))]</span>
 <span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">DensityAltitude</span>(<span class="ident">Length</span>);
 
 <span class="kw">impl</span> <span class="ident">DensityAltitude</span> {

@@ -186,6 +186,7 @@
 <span id="183">183</span>
 <span id="184">184</span>
 <span id="185">185</span>
+<span id="186">186</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="doccomment">//! Layers of the ICAO International Standard Atmosphere</span>
 
@@ -200,6 +201,7 @@
 
 <span class="doccomment">/// A layer of the atmosphere</span>
 <span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Clone</span>, <span class="ident">Debug</span>)]</span>
+<span class="attribute">#[<span class="ident">cfg_attr</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;serde&quot;</span>, <span class="ident">derive</span>(<span class="ident">serde</span>::<span class="ident">Serialize</span>, <span class="ident">serde</span>::<span class="ident">Deserialize</span>))]</span>
 <span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">Layer</span> {
     <span class="doccomment">/// The altitude range</span>
     <span class="kw">pub</span> <span class="ident">altitude</span>: <span class="ident">Range</span><span class="op">&lt;</span><span class="ident">GeopotentialAltitude</span><span class="op">&gt;</span>,
