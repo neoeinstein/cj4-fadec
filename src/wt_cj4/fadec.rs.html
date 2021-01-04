@@ -281,24 +281,17 @@
 <span id="278">278</span>
 <span id="279">279</span>
 <span id="280">280</span>
-<span id="281">281</span>
-<span id="282">282</span>
-<span id="283">283</span>
-<span id="284">284</span>
-<span id="285">285</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="doccomment">//! The CJ4 FADEC controller module</span>
 
 <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">control_params</span>::{<span class="ident">ThrottleAxis</span>, <span class="ident">ThrottleMode</span>, <span class="ident">ThrottlePercent</span>, <span class="ident">ThrustValue</span>};
 <span class="kw">use</span> <span class="ident">avmath</span>::<span class="ident">isa</span>::<span class="ident">PressureAltitude</span>;
-<span class="kw">use</span> <span class="ident">uom</span>::<span class="ident">fmt</span>::<span class="ident">DisplayStyle</span>::<span class="ident">Abbreviation</span>;
 <span class="kw">use</span> <span class="ident">uom</span>::<span class="ident">num_traits</span>::{<span class="ident">clamp</span>, <span class="ident">clamp_min</span>};
 <span class="kw">use</span> <span class="ident">uom</span>::<span class="ident">si</span>::{
     <span class="ident">acceleration</span>::<span class="ident">foot_per_second_squared</span>,
     <span class="ident">f64</span>::<span class="kw-2">*</span>,
     <span class="ident">force</span>::<span class="ident">poundal</span>,
     <span class="ident">length</span>::<span class="ident">foot</span>,
-    <span class="ident">mass_density</span>::<span class="ident">slug_per_cubic_foot</span>,
     <span class="ident">mass_rate</span>::<span class="ident">pound_per_second</span>,
     <span class="ident">momentum</span>::<span class="ident">pound_foot_per_second</span>,
     <span class="ident">ratio</span>::{<span class="ident">percent</span>, <span class="ident">ratio</span>},
@@ -374,15 +367,12 @@
                 <span class="kw">let</span> <span class="ident">thrust_target</span>: <span class="ident">Force</span> <span class="op">=</span> <span class="kw">if</span> <span class="ident">max_effective_thrust</span> <span class="op">&lt;</span> <span class="ident">low_altitude_thrust_target</span> {
                     <span class="kw">let</span> <span class="ident">high_altitude_thrust_loss</span> <span class="op">=</span>
                         <span class="ident">calculate_high_altitude_thrust_loss</span>(<span class="ident">pressure_altitude</span>);
-                    <span class="kw">let</span> <span class="ident">high_altitude_thrust_target</span> <span class="op">=</span>
-                        <span class="ident">max_effective_thrust</span> <span class="op">-</span> <span class="ident">high_altitude_thrust_loss</span>;
+                    <span class="ident">max_effective_thrust</span> <span class="op">-</span> <span class="ident">high_altitude_thrust_loss</span>
 
                     <span class="comment">// println!(</span>
                     <span class="comment">//     &quot;High altitude thrust target: {:.3}&quot;,</span>
                     <span class="comment">//     high_altitude_thrust_target.into_format_args(poundal, Abbreviation)</span>
                     <span class="comment">// );</span>
-
-                    <span class="ident">high_altitude_thrust_target</span>
                 } <span class="kw">else</span> {
                     <span class="comment">// println!(</span>
                     <span class="comment">//     &quot;Low altitude thrust target: {:.3}&quot;,</span>
