@@ -22,7 +22,7 @@ pub fn create_recorder() -> Result<FlightDataRecorder, Box<dyn std::error::Error
     }
 
     fn try_read_dir(path: &str) {
-        let dir = std::fs::read_dir(r#"\work"#);
+        let dir = std::fs::read_dir(path);
         let d = match dir {
             Ok(d) => d,
             Err(err) => {
