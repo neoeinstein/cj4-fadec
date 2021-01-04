@@ -18,11 +18,11 @@
 //! });
 //! ```
 
-use serde::{Deserialize, Serialize};
 use std::iter;
 
 /// An indexer into an engine data structure
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum EngineNumber {
     /// Engine 1
     Engine1,
@@ -41,7 +41,8 @@ impl EngineNumber {
 /// Bilateral engine data structure
 ///
 /// Can be indexed into by using the `EngineNumber` structure:
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct EngineData<T> {
     /// Engine 1
     pub engine1: T,

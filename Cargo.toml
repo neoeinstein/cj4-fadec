@@ -23,8 +23,9 @@ num-traits = "0.2.14"
 parking_lot = "0.11.1"
 serde = { version = "1", features = ["derive"] }
 simconnect-sys = { path = "./simconnect-sys" }
-uom = { version = "0.30.0", default-features = false, features = ["f64", "si", "std", "use_serde"] }
-wt_cj4 = { path = "./wt_cj4" }
+uom = { version = "0.30.0", features = ["use_serde"] }
+wt_cj4 = { path = "./wt_cj4", features = ["serde"] }
+wt_systems = { path = "./wt_systems", features = ["serde"] }
 wt_flight_recorder = { path = "./wt_flight_recorder" }
 
 [workspace]

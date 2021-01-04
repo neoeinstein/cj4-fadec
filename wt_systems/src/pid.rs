@@ -37,13 +37,14 @@ pub type ErrorRate<In, Over> = <In as ops::Div<Over>>::Output;
 ///     tolerance: Velocity::new::<meter_per_second>(0.5),
 /// };
 /// ```
-#[derive(Serialize, Deserialize)]
-#[serde(bound(
-    serialize = "In: Serialize, Proportion<Ratio, In>: Serialize, Integral<Ratio, In, Time>: Serialize, Derivative<Time, In>: Serialize"
-))]
-#[serde(bound(
-    deserialize = "for<'d> In: Deserialize<'d>, for<'d> Proportion<Ratio, In>: Deserialize<'d>, for<'d> Integral<Ratio, In, Time>: Deserialize<'d>, for<'d> Derivative<Time, In>: Deserialize<'d>"
-))]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[cfg_attr(
+    feature = "serde",
+    serde(bound(
+        serialize = "In: Serialize, Proportion<Ratio, In>: Serialize, Integral<Ratio, In, Time>: Serialize, Derivative<Time, In>: Serialize",
+        deserialize = "for<'d> In: Deserialize<'d>, for<'d> Proportion<Ratio, In>: Deserialize<'d>, for<'d> Integral<Ratio, In, Time>: Deserialize<'d>, for<'d> Derivative<Time, In>: Deserialize<'d>",
+    ))
+)]
 pub struct PidConfiguration<In>
 where
     Ratio: ops::Div<In> + ops::Div<RetainedError<Time, In>>,
@@ -181,11 +182,14 @@ where
 ///     Time::new::<second>(5.),
 /// );
 /// ```
-#[derive(Serialize, Deserialize)]
-#[serde(bound(serialize = "In: Serialize, RetainedError<Time, In>: Serialize"))]
-#[serde(bound(
-    deserialize = "for<'d> In: Deserialize<'d>, for<'d> RetainedError<Time, In>: Deserialize<'d>"
-))]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[cfg_attr(
+    feature = "serde",
+    serde(bound(
+        serialize = "In: Serialize, RetainedError<Time, In>: Serialize",
+        deserialize = "for<'d> In: Deserialize<'d>, for<'d> RetainedError<Time, In>: Deserialize<'d>",
+    ))
+)]
 pub struct PidController<In>
 where
     Ratio: ops::Div<In> + ops::Div<RetainedError<Time, In>>,

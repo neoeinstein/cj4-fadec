@@ -2,7 +2,6 @@
 
 use crate::control_params::{ThrottleAxis, ThrottleMode, ThrottlePercent, ThrustValue};
 use avmath::isa::PressureAltitude;
-use serde::{Deserialize, Serialize};
 use uom::fmt::DisplayStyle::Abbreviation;
 use uom::num_traits::{clamp, clamp_min};
 use uom::si::{
@@ -20,7 +19,8 @@ use uom::si::{
 use wt_systems::{PidConfiguration, PidController};
 
 /// The CJ4 FADEC controller
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct FadecController {
     climb_pid_config: PidConfiguration<Force>,
     pid_state: PidController<Force>,
