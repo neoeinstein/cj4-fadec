@@ -43,21 +43,102 @@ struct FlatSnapshot {
     engine2_fadec_enabled: bool,
 }
 
+fn find_splits(path: &str) -> Option<(&str, u32)> {
+    let file_name = path.strip_suffix(".msgpack.gz")?;
+    let mut splits = file_name.rsplit('_');
+    let sequence = splits.next()?.parse::<u32>().ok()?;
+    let stem = splits.next()?;
+    Some((stem, sequence))
+}
+
+type Input = rmp_serde::Deserializer<
+    rmp_serde::decode::ReadReader<flate2::read::GzDecoder<std::fs::File>>,
+    rmp_serde::config::DefaultConfig,
+>;
+
+fn open_next(multi: &mut (&str, u32)) -> Option<Input> {
+    multi.1 += 1;
+    let path = format!("{}_{:02}.msgpack.gz", multi.0, multi.1);
+    open(&path).ok()
+}
+
+fn open(path: &str) -> std::io::Result<Input> {
+    let file = std::fs::File::open(path)?;
+    println!("Processing {}", path);
+    let reader = flate2::read::GzDecoder::new(file);
+    Ok(rmp_serde::Deserializer::new(reader))
+}
+
 fn main() {
     let mut args = std::env::args();
     args.next();
     let ipath = args.next().unwrap();
-    let opath = args.next().unwrap();
+    let opath_maybe = args.next();
 
-    let i = flate2::read::GzDecoder::new(std::fs::File::open(ipath).unwrap());
+    let mut multi = find_splits(&ipath);
+
+    let opath = opath_maybe
+        .or_else(|| multi.map(|m| format!("{}.csv", m.0)))
+        .unwrap();
+
+    println!("Output: {}", opath);
+
+    let mut input = open(&ipath).unwrap();
     let o = std::fs::File::create(opath).unwrap();
 
-    let mut istream = rmp_serde::Deserializer::new(i);
     let mut o = csv::WriterBuilder::new().has_headers(true).from_writer(o);
 
-    loop {
-        let x: wt_cj4::Snapshot = serde::de::Deserialize::deserialize(&mut istream).unwrap();
-        o.serialize(&FlatSnapshot {
+    let mut records = 0;
+    let mut files = 1;
+
+    while process_record(&mut multi, &mut input, &mut o, &mut files, true) == Loop::Continue {
+        records += 1;
+    }
+
+    println!("Processed {} records across {} files", records, files);
+}
+
+#[derive(PartialEq, Eq)]
+enum Loop {
+    Break,
+    Continue,
+}
+
+fn process_record(
+    multi: &mut Option<(&str, u32)>,
+    input: &mut Input,
+    output: &mut csv::Writer<std::fs::File>,
+    files: &mut i32,
+    recurse: bool,
+) -> Loop {
+    let x: wt_cj4::Snapshot = match serde::de::Deserialize::deserialize(&mut *input) {
+        Ok(x) => x,
+        Err(rmp_serde::decode::Error::InvalidMarkerRead(err))
+            if err.kind() == std::io::ErrorKind::UnexpectedEof =>
+        {
+            if let Some(m) = multi {
+                *input = if let Some(next) = open_next(m) {
+                    *files += 1;
+                    next
+                } else {
+                    return Loop::Break;
+                };
+                if recurse {
+                    return process_record(multi, &mut *input, output, files, false);
+                } else {
+                    return Loop::Break;
+                }
+            } else {
+                return Loop::Break;
+            }
+        }
+        Err(err) => {
+            eprintln!("Error deserializing: {}", err);
+            return Loop::Break;
+        }
+    };
+    output
+        .serialize(&FlatSnapshot {
             simulation_time: x.sim_time.get::<uom::si::time::second>(),
             delta_t: x.delta_t.get::<uom::si::time::second>(),
             mach_number: x
@@ -128,5 +209,5 @@ fn main() {
             engine2_fadec_enabled: x.aircraft.engines[EngineNumber::Engine2].fadec.is_enabled(),
         })
         .unwrap();
-    }
+    Loop::Continue
 }
