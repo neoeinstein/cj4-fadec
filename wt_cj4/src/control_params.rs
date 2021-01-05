@@ -138,6 +138,13 @@ impl ThrottleAxis {
     }
 }
 
+impl Default for ThrottleAxis {
+    #[inline]
+    fn default() -> Self {
+        Self::MIN
+    }
+}
+
 impl fmt::Display for ThrottleAxis {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "{:.1}", self.0)
@@ -190,7 +197,7 @@ impl fmt::Display for ThrustValue {
 }
 
 /// A throttle position as a percentage of full
-#[derive(Clone, Copy, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[repr(transparent)]
 pub struct ThrottlePercent(f64);

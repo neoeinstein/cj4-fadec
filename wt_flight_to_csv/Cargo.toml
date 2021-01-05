@@ -1,5 +1,5 @@
 [package]
-name = "wt_flight_recorder"
+name = "wt_flight_to_csv"
 version = "0.1.0"
 authors = ["Marcus Griep <marcus@griep.us>"]
 edition = "2018"
@@ -7,8 +7,10 @@ edition = "2018"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-chrono = "0.4"
-serde = "1"
+csv = "*"
+serde = { version = "1", features = ["derive"] }
+serde-transcode = "1.1.0"
 rmp-serde = "*"
 flate2 = "1"
-wasi = "0.10.0+wasi-snapshot-preview1"
+uom = "0.30"
+wt_cj4 = { path = "../wt_cj4" }

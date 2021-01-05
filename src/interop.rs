@@ -21,7 +21,8 @@ gauge_unit!(SluggerSlugs: "Slug per cubic feet"; "Pressure measured in slugs per
 indexed_aircraft_variable!(Throttle(Percent): "GENERAL ENG THROTTLE LEVER POSITION"; "Engine throttle lever position");
 indexed_aircraft_variable!(Thrust(Pounds): "TURB ENG JET THRUST"; "Turbine engine jet thrust");
 unindexed_aircraft_variable!(AirspeedMach(Mach): "AIRSPEED MACH"; "Airspeed as Mach number");
-unindexed_aircraft_variable!(Altitude(Feet): "PRESSURE ALTITUDE"; "Pressure altitude");
+unindexed_aircraft_variable!(PressureAltitude(Feet): "PRESSURE ALTITUDE"; "Pressure altitude");
+unindexed_aircraft_variable!(GeometricAltitude(Feet): "PLANE ALTITUDE"; "Plane altitude");
 unindexed_aircraft_variable!(AmbientDensity(SluggerSlugs): "AMBIENT DENSITY"; "Ambient air density");
 unindexed_aircraft_variable!(OnGround(Number): "SIM ON GROUND"; "Whether the user's aircraft is on the ground");
 
@@ -72,9 +73,15 @@ impl Thrust {
     }
 }
 
-impl Altitude {
+impl PressureAltitude {
     pub fn read() -> avmath::isa::PressureAltitude {
         avmath::isa::PressureAltitude::new::<foot>(Self::read_raw())
+    }
+}
+
+impl GeometricAltitude {
+    pub fn read() -> avmath::isa::GeometricAltitude {
+        avmath::isa::GeometricAltitude::new::<foot>(Self::read_raw())
     }
 }
 

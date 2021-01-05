@@ -1,28 +1,25 @@
 use crate::interop;
-use avmath::isa::PressureAltitude;
 use simconnect_sys::{ffi::HResult, EventType, NotificationGroup};
-use std::cell::Cell;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 use uom::si::{f64::Time, time::second};
 use wt_cj4::{
     control_params::{ThrottleAxis, ThrottleMode, ThrottlePercent},
     engines::{EngineData, EngineNumber},
-    FadecController,
+    Aircraft, EngineReadings, Environment, Instruments, Snapshot,
 };
 
 #[derive(Debug)]
 pub struct FdGauge {
     simconnect: Arc<simconnect_sys::SimConnect>,
-    controller: EngineData<FadecController>,
-    last_throttle_axis: Cell<EngineData<ThrottleAxis>>,
+    state: Aircraft,
     last_update: Instant,
-    recorder: Option<wt_flight_recorder::FlightDataRecorder>,
+    recorder: Option<wt_flight_recorder::FlightDataRecorder<Snapshot>>,
 }
 
 impl FdGauge {
     pub fn new() -> Result<Self, HResult> {
-        let recorder = match wt_flight_recorder::create_recorder() {
+        let recorder = match wt_flight_recorder::FlightDataRecorder::new() {
             Ok(recorder) => Some(recorder),
             Err(err) => {
                 eprintln!("Error creating flight data recorder: {:?}", err);
@@ -36,8 +33,7 @@ impl FdGauge {
 
         let gauge = FdGauge {
             simconnect,
-            controller: EngineData::default(),
-            last_throttle_axis: Cell::new(EngineData::new(ThrottleAxis::MIN)),
+            state: Aircraft::default(),
             last_update: Instant::now(),
             recorder,
         };
@@ -58,93 +54,86 @@ impl FdGauge {
         }
 
         if now.duration_since(self.last_update) > Duration::from_millis(50) {
-            self.update(Time::new::<second>(draw_data.dt));
-            self.last_update = now;
-        }
+            let delta_t = Time::new::<second>(draw_data.dt);
+            let sim_time = Time::new::<second>(draw_data.t);
 
-        if let Some(r) = &mut self.recorder {
-            r.publish(&self.controller).ok();
+            let instruments = Instruments {
+                mach_number: interop::AirspeedMach::read(),
+                ambient_density: interop::AmbientDensity::read(),
+                geometric_altitude: interop::GeometricAltitude::read(),
+                pressure_altitude: interop::PressureAltitude::read(),
+            };
+
+            let engines = EngineData::new_from(|e| EngineReadings {
+                thrust: interop::Thrust::read_by_index(e),
+            });
+
+            let environment = Environment {
+                instruments,
+                engines,
+            };
+
+            self.step(&environment, delta_t);
+
+            self.record(environment, sim_time, delta_t);
+
+            self.update_sim();
+
+            self.last_update = now;
         }
 
         Ok(())
     }
 
-    pub fn update(&mut self, delta_t: Time) {
-        let last_throttle_axis = self.last_throttle_axis.get();
-        // println!("Most recent throttle values: {:?}", last_throttle_axis);
+    fn step(&mut self, environment: &Environment, delta_t: Time) {
+        self.state
+            .engines
+            .zip(&environment.engines, |_, engine, input| {
+                engine.mode = select_throttle_mode(engine.physical_throttle);
+                let (_, throttle_command) = engine.fadec.get_desired_throttle(
+                    engine.physical_throttle.to_ratio(),
+                    engine.mode,
+                    input.thrust,
+                    environment.instruments.mach_number,
+                    environment.instruments.ambient_density,
+                    environment.instruments.pressure_altitude,
+                    delta_t,
+                );
+                engine.engine_throttle = throttle_command;
+                engine.visual_throttle =
+                    calculate_throttle_position(engine.mode, engine.physical_throttle);
+            });
+    }
 
-        let intermediate = last_throttle_axis.map(|engine, axis| {
-            // println!("Processing {:?}", engine);
-            let mode = select_throttle_mode(axis);
-            interop::Throttle::set_mode(engine, mode);
-            // println!("{:?}: Updated mode to {:?}", engine, mode);
-
-            let engine_thrust = interop::Thrust::read_by_index(engine);
-            let mach_number = interop::AirspeedMach::read();
-            let ambient_density = interop::AmbientDensity::read();
-            let pressure_altitude = interop::Altitude::read();
-            let current_throttle = axis.to_ratio();
-
-            #[derive(serde::Serialize, serde::Deserialize)]
-            struct Data {
-                engine: EngineNumber,
-                thrust: uom::si::f64::Force,
-                mach: uom::si::f64::Ratio,
-                density: uom::si::f64::MassDensity,
-                pressure_altitude: PressureAltitude,
-                throttle_position: uom::si::f64::Ratio,
-            }
-
-            if let Some(r) = &mut self.recorder {
-                r.publish(&Data {
-                    engine,
-                    thrust: engine_thrust,
-                    mach: mach_number,
-                    density: ambient_density,
-                    pressure_altitude,
-                    throttle_position: current_throttle,
-                })
-                .ok();
-            }
-
-            let (_, new_throttle) = self.controller[engine].get_desired_throttle(
-                current_throttle,
-                mode,
-                engine_thrust,
-                mach_number,
-                ambient_density,
-                pressure_altitude,
+    fn record(&mut self, environment: Environment, sim_time: Time, delta_t: Time) {
+        if let Some(r) = &mut self.recorder {
+            r.publish(&Snapshot {
+                aircraft: self.state,
+                environment,
+                sim_time,
                 delta_t,
-            );
-            // println!(
-            //     "{:?}: Current throttle: {:.4}, New throttle: {:+.4}",
-            //     engine,
-            //     current_throttle.into_format_args(ratio, Abbreviation),
-            //     new_throttle
-            //         .to_ratio()
-            //         .into_format_args(ratio, Abbreviation)
-            // );
+            })
+            .ok();
+        }
+    }
 
-            let visible_position = calculate_throttle_position(mode, axis);
-            // println!("{:?}: Updating throttle to {:?}", engine, visible_position);
-            interop::Throttle::set_position(engine, visible_position);
-
-            new_throttle
+    fn update_sim(&self) {
+        self.state.engines.for_each(|n, e| {
+            interop::Throttle::set_position(n, e.visual_throttle);
+            interop::Throttle::set_mode(n, e.mode);
         });
 
         let update = interop::EngineDataControl {
-            throttle_engine1: intermediate[EngineNumber::Engine1],
-            throttle_engine2: intermediate[EngineNumber::Engine2],
+            throttle_engine1: self.state.engines[EngineNumber::Engine1].engine_throttle,
+            throttle_engine2: self.state.engines[EngineNumber::Engine2].engine_throttle,
         };
-
-        // println!("Update prepared: {:?}", update);
 
         if let Err(err) = self.simconnect.update_user_data(&update) {
             println!("Error updating simconnect user data: {:?}", err);
         }
     }
 
-    fn handle_axis_event(&self, event: &simconnect_sys::ffi::ReceiveEvent) {
+    fn handle_axis_event(&mut self, event: &simconnect_sys::ffi::ReceiveEvent) {
         //println!("Received event!");
         if let Some(group) = interop::NotificationGroup::from_ffi(event.group_id) {
             // println!("Picked a group: {:?}", group);
@@ -159,115 +148,79 @@ impl FdGauge {
                         match event_type {
                             interop::ThrottleEventType::AxisThrottleSet
                             | interop::ThrottleEventType::AxisThrottleSetEx => {
-                                self.last_throttle_axis.set(EngineData::new(
-                                    ThrottleAxis::from_raw_i32(event.data as i32),
-                                ));
+                                self.state.engines.update(|_, eng| {
+                                    eng.physical_throttle =
+                                        ThrottleAxis::from_raw_i32(event.data as i32)
+                                });
                             }
                             interop::ThrottleEventType::AxisThrottle1Set
                             | interop::ThrottleEventType::AxisThrottle1SetEx => {
-                                self.last_throttle_axis.set(EngineData {
-                                    engine1: ThrottleAxis::from_raw_i32(event.data as i32),
-                                    ..self.last_throttle_axis.get()
-                                });
+                                self.state.engines.engine1.physical_throttle =
+                                    ThrottleAxis::from_raw_i32(event.data as i32);
                             }
                             interop::ThrottleEventType::AxisThrottle2Set
                             | interop::ThrottleEventType::AxisThrottle2SetEx => {
-                                self.last_throttle_axis.set(EngineData {
-                                    engine2: ThrottleAxis::from_raw_i32(event.data as i32),
-                                    ..self.last_throttle_axis.get()
-                                });
+                                self.state.engines.engine2.physical_throttle =
+                                    ThrottleAxis::from_raw_i32(event.data as i32);
                             }
                             interop::ThrottleEventType::ThrottleSet => {
-                                self.last_throttle_axis
-                                    .set(EngineData::new(ThrottleAxis::from_raw_u32(event.data)));
+                                self.state.engines.update(|_, eng| {
+                                    eng.physical_throttle = ThrottleAxis::from_raw_u32(event.data)
+                                });
                             }
                             interop::ThrottleEventType::Throttle1Set => {
-                                self.last_throttle_axis.set(EngineData {
-                                    engine1: ThrottleAxis::from_raw_u32(event.data),
-                                    ..self.last_throttle_axis.get()
-                                });
+                                self.state.engines.engine1.physical_throttle =
+                                    ThrottleAxis::from_raw_u32(event.data);
                             }
                             interop::ThrottleEventType::Throttle2Set => {
-                                self.last_throttle_axis.set(EngineData {
-                                    engine2: ThrottleAxis::from_raw_u32(event.data),
-                                    ..self.last_throttle_axis.get()
-                                });
+                                self.state.engines.engine2.physical_throttle =
+                                    ThrottleAxis::from_raw_u32(event.data);
                             }
                             interop::ThrottleEventType::ThrottleFull => {
-                                self.last_throttle_axis
-                                    .set(EngineData::new(ThrottleAxis::MAX));
+                                self.state.engines.update(|_, eng| {
+                                    eng.physical_throttle = ThrottleAxis::MAX;
+                                });
                             }
                             interop::ThrottleEventType::Throttle1Full => {
-                                self.last_throttle_axis.set(EngineData {
-                                    engine1: ThrottleAxis::MAX,
-                                    ..self.last_throttle_axis.get()
-                                });
+                                self.state.engines.engine1.physical_throttle = ThrottleAxis::MAX;
                             }
                             interop::ThrottleEventType::Throttle2Full => {
-                                self.last_throttle_axis.set(EngineData {
-                                    engine2: ThrottleAxis::MAX,
-                                    ..self.last_throttle_axis.get()
-                                });
+                                self.state.engines.engine2.physical_throttle = ThrottleAxis::MAX;
                             }
                             interop::ThrottleEventType::ThrottleCut => {
-                                self.last_throttle_axis
-                                    .set(EngineData::new(ThrottleAxis::MIN));
+                                self.state.engines.update(|_, eng| {
+                                    eng.physical_throttle = ThrottleAxis::MIN;
+                                });
                             }
                             interop::ThrottleEventType::Throttle1Cut => {
-                                self.last_throttle_axis.set(EngineData {
-                                    engine1: ThrottleAxis::MIN,
-                                    ..self.last_throttle_axis.get()
-                                });
+                                self.state.engines.engine1.physical_throttle = ThrottleAxis::MIN;
                             }
                             interop::ThrottleEventType::Throttle2Cut => {
-                                self.last_throttle_axis.set(EngineData {
-                                    engine2: ThrottleAxis::MIN,
-                                    ..self.last_throttle_axis.get()
-                                });
+                                self.state.engines.engine2.physical_throttle = ThrottleAxis::MIN;
                             }
                             interop::ThrottleEventType::ThrottleIncr
                             | interop::ThrottleEventType::IncreaseThrottle => {
-                                let prior = self.last_throttle_axis.get();
-                                self.last_throttle_axis.set(EngineData {
-                                    engine1: prior.engine1.inc(),
-                                    engine2: prior.engine2.inc(),
+                                self.state.engines.update(|_, eng| {
+                                    eng.physical_throttle.inc();
                                 });
                             }
                             interop::ThrottleEventType::Throttle1Incr => {
-                                let prior = self.last_throttle_axis.get();
-                                self.last_throttle_axis.set(EngineData {
-                                    engine1: prior.engine1.inc(),
-                                    ..prior
-                                });
+                                self.state.engines.engine1.physical_throttle.inc();
                             }
                             interop::ThrottleEventType::Throttle2Incr => {
-                                let prior = self.last_throttle_axis.get();
-                                self.last_throttle_axis.set(EngineData {
-                                    engine2: prior.engine2.inc(),
-                                    ..prior
-                                });
+                                self.state.engines.engine2.physical_throttle.inc();
                             }
                             interop::ThrottleEventType::ThrottleDecr
                             | interop::ThrottleEventType::DecreaseThrottle => {
-                                let prior = self.last_throttle_axis.get();
-                                self.last_throttle_axis.set(EngineData {
-                                    engine1: prior.engine1.dec(),
-                                    engine2: prior.engine2.dec(),
+                                self.state.engines.update(|_, eng| {
+                                    eng.physical_throttle.dec();
                                 });
                             }
                             interop::ThrottleEventType::Throttle1Decr => {
-                                let prior = self.last_throttle_axis.get();
-                                self.last_throttle_axis.set(EngineData {
-                                    engine1: prior.engine1.dec(),
-                                    ..prior
-                                });
+                                self.state.engines.engine1.physical_throttle.dec();
                             }
                             interop::ThrottleEventType::Throttle2Decr => {
-                                let prior = self.last_throttle_axis.get();
-                                self.last_throttle_axis.set(EngineData {
-                                    engine1: prior.engine2.dec(),
-                                    ..prior
-                                });
+                                self.state.engines.engine2.physical_throttle.dec();
                             }
                         }
 
@@ -285,7 +238,7 @@ impl FdGauge {
 }
 
 impl simconnect_sys::SimConnectDispatcher for FdGauge {
-    fn handle_event(&self, event: &simconnect_sys::ffi::ReceiveEvent) {
+    fn handle_event(&mut self, event: &simconnect_sys::ffi::ReceiveEvent) {
         //println!("Received event! Passing it along...");
         //println!("What am I? {:?}", self as *const Self);
         self.handle_axis_event(event)

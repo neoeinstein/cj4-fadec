@@ -120,6 +120,26 @@ where
 {
 }
 
+impl<In> PartialEq for PidConfiguration<In>
+where
+    In: PartialEq,
+    Ratio: ops::Div<In> + ops::Div<RetainedError<Time, In>>,
+    Time: ops::Mul<In> + ops::Div<In>,
+    Proportion<Ratio, In>: PartialEq,
+    Integral<Ratio, In, Time>: PartialEq,
+    Derivative<Time, In>: PartialEq,
+{
+    #[inline]
+    fn eq(&self, other: &Self) -> bool {
+        self.gain_derivative == other.gain_derivative
+            && self.gain_integral == other.gain_integral
+            && self.gain_proportion == other.gain_proportion
+            && self.output_range == other.output_range
+            && self.derivative_range == other.derivative_range
+            && self.tolerance == other.tolerance
+    }
+}
+
 impl<In> fmt::Debug for PidConfiguration<In>
 where
     In: fmt::Debug,
@@ -195,8 +215,11 @@ where
     Ratio: ops::Div<In> + ops::Div<RetainedError<Time, In>>,
     Time: ops::Mul<In> + ops::Div<In>,
 {
-    prior_error: In,
-    retained_error: RetainedError<Time, In>,
+    /// Error identified during the last step
+    pub prior_error: In,
+
+    /// Retained error (momentum) due to accumulated errors over time
+    pub retained_error: RetainedError<Time, In>,
 }
 
 impl<In> Clone for PidController<In>
@@ -252,6 +275,19 @@ where
             prior_error: zero(),
             retained_error: zero(),
         }
+    }
+}
+
+impl<In> PartialEq for PidController<In>
+where
+    In: PartialEq,
+    Ratio: ops::Div<In> + ops::Div<RetainedError<Time, In>>,
+    Time: ops::Mul<In> + ops::Div<In>,
+    RetainedError<Time, In>: PartialEq,
+{
+    #[inline]
+    fn eq(&self, other: &Self) -> bool {
+        self.prior_error == other.prior_error && self.retained_error == other.retained_error
     }
 }
 

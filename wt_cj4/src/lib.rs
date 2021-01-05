@@ -12,5 +12,7 @@
 pub mod control_params;
 pub mod engines;
 mod fadec;
+mod state;
 
 pub use fadec::FadecController;
+pub use state::{Aircraft, Engine, EngineReadings, Environment, Instruments, Snapshot};

@@ -17,6 +17,12 @@ use gauge_sys::ffi::{RawServiceId, ServiceId};
 mod gauges;
 mod interop;
 
+// #[derive(serde::Serialize, serde::Deserialize)]
+// pub enum Message {
+//     Fadec(wt_cj4::engines::EngineData<wt_cj4::FadecController>),
+//     Environment(gauges::Data),
+// }
+
 static GAUGE: parking_lot::Mutex<Option<gauges::FdGauge>> = parking_lot::const_mutex(None);
 
 /// The primary entry point for Microsoft Flight Simulator modules built on
@@ -53,6 +59,7 @@ pub extern "C" fn FdGauge_gauge_callback(
             }
             ServiceId::PreKill => {
                 GAUGE.lock().take();
+                println!("Exiting gauge");
                 true
             }
             _ => false,

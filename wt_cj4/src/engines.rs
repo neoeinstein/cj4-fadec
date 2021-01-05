@@ -63,12 +63,27 @@ impl<T> EngineData<T> {
         }
     }
 
+    /// Produces a new set of engine data from a generator function
+    pub fn new_from(mut f: impl FnMut(EngineNumber) -> T) -> EngineData<T> {
+        Self {
+            engine1: f(EngineNumber::Engine1),
+            engine2: f(EngineNumber::Engine2),
+        }
+    }
+
     /// Assigns each engine distinct values
     pub const fn new_distinct(e1: T, e2: T) -> Self {
         Self {
             engine1: e1,
             engine2: e2,
         }
+    }
+
+    /// Runs a function for a single engine on all of the engines,
+    /// producing a new engine data structure
+    pub fn for_each(self, mut f: impl FnMut(EngineNumber, T)) {
+        f(EngineNumber::Engine1, self.engine1);
+        f(EngineNumber::Engine2, self.engine2);
     }
 
     /// Runs a function for a single engine on all of the engines,
@@ -85,6 +100,15 @@ impl<T> EngineData<T> {
     pub fn update(&mut self, mut f: impl FnMut(EngineNumber, &mut T)) {
         f(EngineNumber::Engine1, &mut self.engine1);
         f(EngineNumber::Engine2, &mut self.engine2);
+    }
+
+    /// Zips together two engine data sources
+    ///
+    /// The `self` data source is borrowed mutably, enabling in-place updates
+    /// based on data provided by the second data source.
+    pub fn zip<U>(&mut self, other: &EngineData<U>, mut f: impl FnMut(EngineNumber, &mut T, &U)) {
+        f(EngineNumber::Engine1, &mut self.engine1, &other.engine1);
+        f(EngineNumber::Engine2, &mut self.engine2, &other.engine2);
     }
 
     /// Iterates through the engine values, borrowing the underlying data

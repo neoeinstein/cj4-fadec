@@ -29,3 +29,6 @@ wt_systems = { path = "./wt_systems", features = ["serde"] }
 wt_flight_recorder = { path = "./wt_flight_recorder" }
 
 [workspace]
+members = [
+    "wt_flight_to_csv"
+]

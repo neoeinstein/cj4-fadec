@@ -17,7 +17,7 @@ use uom::si::{
 use wt_systems::{PidConfiguration, PidController};
 
 /// The CJ4 FADEC controller
-#[derive(Debug)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct FadecController {
     climb_pid_config: PidConfiguration<Force>,
@@ -38,6 +38,26 @@ impl Default for FadecController {
 }
 
 impl FadecController {
+    /// Provides read access to view the current PID configuration
+    pub fn pid_config(&self) -> &PidConfiguration<Force> {
+        &self.climb_pid_config
+    }
+
+    /// Provides read access to the current PID state
+    pub fn pid_state(&self) -> &PidController<Force> {
+        &self.pid_state
+    }
+
+    /// The currently configured throttle value
+    pub fn throttle_selected(&self) -> Ratio {
+        self.throttle_selected
+    }
+
+    /// Whether or not the FADEC module is enabled
+    pub fn is_enabled(&self) -> bool {
+        self.enabled
+    }
+
     /// Steps the FADEC controller to command the virtual throttle lever
     /// position changes required to obtain the desired thrust based on the
     /// current throttle mode

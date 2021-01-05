@@ -317,10 +317,10 @@ unsafe fn handle_dispatch_inner<D: std::fmt::Debug + SimConnectDispatcher>(
 #[allow(unused_variables)]
 pub trait SimConnectDispatcher {
     /// Receives the initial message sent on opening a connection
-    fn handle_open(&self, event: &ffi::ReceiveOpen) {}
+    fn handle_open(&mut self, event: &ffi::ReceiveOpen) {}
 
     /// Receives an event with new data
-    fn handle_event(&self, event: &ffi::ReceiveEvent) {}
+    fn handle_event(&mut self, event: &ffi::ReceiveEvent) {}
 }
 
 const UNSPECIFIED: u32 = 0xFFFFFFFF;
