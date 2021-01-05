@@ -514,6 +514,42 @@
 <span id="511">511</span>
 <span id="512">512</span>
 <span id="513">513</span>
+<span id="514">514</span>
+<span id="515">515</span>
+<span id="516">516</span>
+<span id="517">517</span>
+<span id="518">518</span>
+<span id="519">519</span>
+<span id="520">520</span>
+<span id="521">521</span>
+<span id="522">522</span>
+<span id="523">523</span>
+<span id="524">524</span>
+<span id="525">525</span>
+<span id="526">526</span>
+<span id="527">527</span>
+<span id="528">528</span>
+<span id="529">529</span>
+<span id="530">530</span>
+<span id="531">531</span>
+<span id="532">532</span>
+<span id="533">533</span>
+<span id="534">534</span>
+<span id="535">535</span>
+<span id="536">536</span>
+<span id="537">537</span>
+<span id="538">538</span>
+<span id="539">539</span>
+<span id="540">540</span>
+<span id="541">541</span>
+<span id="542">542</span>
+<span id="543">543</span>
+<span id="544">544</span>
+<span id="545">545</span>
+<span id="546">546</span>
+<span id="547">547</span>
+<span id="548">548</span>
+<span id="549">549</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="kw">use</span> <span class="ident">serde</span>::{<span class="ident">Deserialize</span>, <span class="ident">Serialize</span>};
 <span class="kw">use</span> <span class="ident">std</span>::{<span class="ident">fmt</span>, <span class="ident">ops</span>};
@@ -637,6 +673,26 @@
 {
 }
 
+<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">In</span><span class="op">&gt;</span> <span class="ident">PartialEq</span> <span class="kw">for</span> <span class="ident">PidConfiguration</span><span class="op">&lt;</span><span class="ident">In</span><span class="op">&gt;</span>
+<span class="kw">where</span>
+    <span class="ident">In</span>: <span class="ident">PartialEq</span>,
+    <span class="ident">Ratio</span>: <span class="ident">ops</span>::<span class="ident">Div</span><span class="op">&lt;</span><span class="ident">In</span><span class="op">&gt;</span> <span class="op">+</span> <span class="ident">ops</span>::<span class="ident">Div</span><span class="op">&lt;</span><span class="ident">RetainedError</span><span class="op">&lt;</span><span class="ident">Time</span>, <span class="ident">In</span><span class="op">&gt;</span><span class="op">&gt;</span>,
+    <span class="ident">Time</span>: <span class="ident">ops</span>::<span class="ident">Mul</span><span class="op">&lt;</span><span class="ident">In</span><span class="op">&gt;</span> <span class="op">+</span> <span class="ident">ops</span>::<span class="ident">Div</span><span class="op">&lt;</span><span class="ident">In</span><span class="op">&gt;</span>,
+    <span class="ident">Proportion</span><span class="op">&lt;</span><span class="ident">Ratio</span>, <span class="ident">In</span><span class="op">&gt;</span>: <span class="ident">PartialEq</span>,
+    <span class="ident">Integral</span><span class="op">&lt;</span><span class="ident">Ratio</span>, <span class="ident">In</span>, <span class="ident">Time</span><span class="op">&gt;</span>: <span class="ident">PartialEq</span>,
+    <span class="ident">Derivative</span><span class="op">&lt;</span><span class="ident">Time</span>, <span class="ident">In</span><span class="op">&gt;</span>: <span class="ident">PartialEq</span>,
+{
+    <span class="attribute">#[<span class="ident">inline</span>]</span>
+    <span class="kw">fn</span> <span class="ident">eq</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">other</span>: <span class="kw-2">&amp;</span><span class="self">Self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">bool</span> {
+        <span class="self">self</span>.<span class="ident">gain_derivative</span> <span class="op">=</span><span class="op">=</span> <span class="ident">other</span>.<span class="ident">gain_derivative</span>
+            <span class="op">&amp;&amp;</span> <span class="self">self</span>.<span class="ident">gain_integral</span> <span class="op">=</span><span class="op">=</span> <span class="ident">other</span>.<span class="ident">gain_integral</span>
+            <span class="op">&amp;&amp;</span> <span class="self">self</span>.<span class="ident">gain_proportion</span> <span class="op">=</span><span class="op">=</span> <span class="ident">other</span>.<span class="ident">gain_proportion</span>
+            <span class="op">&amp;&amp;</span> <span class="self">self</span>.<span class="ident">output_range</span> <span class="op">=</span><span class="op">=</span> <span class="ident">other</span>.<span class="ident">output_range</span>
+            <span class="op">&amp;&amp;</span> <span class="self">self</span>.<span class="ident">derivative_range</span> <span class="op">=</span><span class="op">=</span> <span class="ident">other</span>.<span class="ident">derivative_range</span>
+            <span class="op">&amp;&amp;</span> <span class="self">self</span>.<span class="ident">tolerance</span> <span class="op">=</span><span class="op">=</span> <span class="ident">other</span>.<span class="ident">tolerance</span>
+    }
+}
+
 <span class="kw">impl</span><span class="op">&lt;</span><span class="ident">In</span><span class="op">&gt;</span> <span class="ident">fmt</span>::<span class="ident">Debug</span> <span class="kw">for</span> <span class="ident">PidConfiguration</span><span class="op">&lt;</span><span class="ident">In</span><span class="op">&gt;</span>
 <span class="kw">where</span>
     <span class="ident">In</span>: <span class="ident">fmt</span>::<span class="ident">Debug</span>,
@@ -712,8 +768,11 @@
     <span class="ident">Ratio</span>: <span class="ident">ops</span>::<span class="ident">Div</span><span class="op">&lt;</span><span class="ident">In</span><span class="op">&gt;</span> <span class="op">+</span> <span class="ident">ops</span>::<span class="ident">Div</span><span class="op">&lt;</span><span class="ident">RetainedError</span><span class="op">&lt;</span><span class="ident">Time</span>, <span class="ident">In</span><span class="op">&gt;</span><span class="op">&gt;</span>,
     <span class="ident">Time</span>: <span class="ident">ops</span>::<span class="ident">Mul</span><span class="op">&lt;</span><span class="ident">In</span><span class="op">&gt;</span> <span class="op">+</span> <span class="ident">ops</span>::<span class="ident">Div</span><span class="op">&lt;</span><span class="ident">In</span><span class="op">&gt;</span>,
 {
-    <span class="ident">prior_error</span>: <span class="ident">In</span>,
-    <span class="ident">retained_error</span>: <span class="ident">RetainedError</span><span class="op">&lt;</span><span class="ident">Time</span>, <span class="ident">In</span><span class="op">&gt;</span>,
+    <span class="doccomment">/// Error identified during the last step</span>
+    <span class="kw">pub</span> <span class="ident">prior_error</span>: <span class="ident">In</span>,
+
+    <span class="doccomment">/// Retained error (momentum) due to accumulated errors over time</span>
+    <span class="kw">pub</span> <span class="ident">retained_error</span>: <span class="ident">RetainedError</span><span class="op">&lt;</span><span class="ident">Time</span>, <span class="ident">In</span><span class="op">&gt;</span>,
 }
 
 <span class="kw">impl</span><span class="op">&lt;</span><span class="ident">In</span><span class="op">&gt;</span> <span class="ident">Clone</span> <span class="kw">for</span> <span class="ident">PidController</span><span class="op">&lt;</span><span class="ident">In</span><span class="op">&gt;</span>
@@ -769,6 +828,19 @@
             <span class="ident">prior_error</span>: <span class="ident">zero</span>(),
             <span class="ident">retained_error</span>: <span class="ident">zero</span>(),
         }
+    }
+}
+
+<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">In</span><span class="op">&gt;</span> <span class="ident">PartialEq</span> <span class="kw">for</span> <span class="ident">PidController</span><span class="op">&lt;</span><span class="ident">In</span><span class="op">&gt;</span>
+<span class="kw">where</span>
+    <span class="ident">In</span>: <span class="ident">PartialEq</span>,
+    <span class="ident">Ratio</span>: <span class="ident">ops</span>::<span class="ident">Div</span><span class="op">&lt;</span><span class="ident">In</span><span class="op">&gt;</span> <span class="op">+</span> <span class="ident">ops</span>::<span class="ident">Div</span><span class="op">&lt;</span><span class="ident">RetainedError</span><span class="op">&lt;</span><span class="ident">Time</span>, <span class="ident">In</span><span class="op">&gt;</span><span class="op">&gt;</span>,
+    <span class="ident">Time</span>: <span class="ident">ops</span>::<span class="ident">Mul</span><span class="op">&lt;</span><span class="ident">In</span><span class="op">&gt;</span> <span class="op">+</span> <span class="ident">ops</span>::<span class="ident">Div</span><span class="op">&lt;</span><span class="ident">In</span><span class="op">&gt;</span>,
+    <span class="ident">RetainedError</span><span class="op">&lt;</span><span class="ident">Time</span>, <span class="ident">In</span><span class="op">&gt;</span>: <span class="ident">PartialEq</span>,
+{
+    <span class="attribute">#[<span class="ident">inline</span>]</span>
+    <span class="kw">fn</span> <span class="ident">eq</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">other</span>: <span class="kw-2">&amp;</span><span class="self">Self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">bool</span> {
+        <span class="self">self</span>.<span class="ident">prior_error</span> <span class="op">=</span><span class="op">=</span> <span class="ident">other</span>.<span class="ident">prior_error</span> <span class="op">&amp;&amp;</span> <span class="self">self</span>.<span class="ident">retained_error</span> <span class="op">=</span><span class="op">=</span> <span class="ident">other</span>.<span class="ident">retained_error</span>
     }
 }
 

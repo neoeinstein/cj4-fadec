@@ -64,6 +64,13 @@
 <span id="61">61</span>
 <span id="62">62</span>
 <span id="63">63</span>
+<span id="64">64</span>
+<span id="65">65</span>
+<span id="66">66</span>
+<span id="67">67</span>
+<span id="68">68</span>
+<span id="69">69</span>
+<span id="70">70</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="doccomment">//! # Working Title CJ4 Web Assembly module</span>
 <span class="doccomment">//!</span>
@@ -83,6 +90,12 @@
 
 <span class="kw">mod</span> <span class="ident">gauges</span>;
 <span class="kw">mod</span> <span class="ident">interop</span>;
+
+<span class="comment">// #[derive(serde::Serialize, serde::Deserialize)]</span>
+<span class="comment">// pub enum Message {</span>
+<span class="comment">//     Fadec(wt_cj4::engines::EngineData&lt;wt_cj4::FadecController&gt;),</span>
+<span class="comment">//     Environment(gauges::Data),</span>
+<span class="comment">// }</span>
 
 <span class="kw">static</span> <span class="ident">GAUGE</span>: <span class="ident">parking_lot</span>::<span class="ident">Mutex</span><span class="op">&lt;</span><span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">gauges</span>::<span class="ident">FdGauge</span><span class="op">&gt;</span><span class="op">&gt;</span> <span class="op">=</span> <span class="ident">parking_lot</span>::<span class="ident">const_mutex</span>(<span class="prelude-val">None</span>);
 
@@ -120,6 +133,7 @@
             }
             <span class="ident">ServiceId</span>::<span class="ident">PreKill</span> <span class="op">=</span><span class="op">&gt;</span> {
                 <span class="ident">GAUGE</span>.<span class="ident">lock</span>().<span class="ident">take</span>();
+                <span class="macro">println</span><span class="macro">!</span>(<span class="string">&quot;Exiting gauge&quot;</span>);
                 <span class="bool-val">true</span>
             }
             <span class="kw">_</span> <span class="op">=</span><span class="op">&gt;</span> <span class="bool-val">false</span>,

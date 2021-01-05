@@ -17,6 +17,8 @@
 <span id="14">14</span>
 <span id="15">15</span>
 <span id="16">16</span>
+<span id="17">17</span>
+<span id="18">18</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="doccomment">//! # Working Title systems for the Cessna Citation CJ4</span>
 
@@ -32,7 +34,9 @@
 <span class="kw">pub</span> <span class="kw">mod</span> <span class="ident">control_params</span>;
 <span class="kw">pub</span> <span class="kw">mod</span> <span class="ident">engines</span>;
 <span class="kw">mod</span> <span class="ident">fadec</span>;
+<span class="kw">mod</span> <span class="ident">state</span>;
 
 <span class="kw">pub</span> <span class="kw">use</span> <span class="ident">fadec</span>::<span class="ident">FadecController</span>;
+<span class="kw">pub</span> <span class="kw">use</span> <span class="ident">state</span>::{<span class="ident">Aircraft</span>, <span class="ident">Engine</span>, <span class="ident">EngineReadings</span>, <span class="ident">Environment</span>, <span class="ident">Instruments</span>, <span class="ident">Snapshot</span>};
 </pre></div>
 </section><section id="search" class="content hidden"></section><section class="footer"></section><script>window.rootPath = "../../";window.currentCrate = "wt_cj4";</script><script src="../../main.js"></script><script src="../../source-script.js"></script><script src="../../source-files.js"></script><script defer src="../../search-index.js"></script></body></html>

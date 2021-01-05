@@ -1,1 +1,1 @@
-initSidebarItems({"fn":[["create_recorder",""]],"struct":[["FlightDataRecorder",""]]});
+initSidebarItems({"struct":[["FlightDataRecorder","A flight data recorder for aircraft data"]]});
