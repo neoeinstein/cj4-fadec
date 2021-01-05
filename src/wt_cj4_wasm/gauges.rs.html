@@ -275,6 +275,13 @@
 <span id="272">272</span>
 <span id="273">273</span>
 <span id="274">274</span>
+<span id="275">275</span>
+<span id="276">276</span>
+<span id="277">277</span>
+<span id="278">278</span>
+<span id="279">279</span>
+<span id="280">280</span>
+<span id="281">281</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">interop</span>;
 <span class="kw">use</span> <span class="ident">simconnect_sys</span>::{<span class="ident">ffi</span>::<span class="ident">HResult</span>, <span class="ident">EventType</span>, <span class="ident">NotificationGroup</span>};
@@ -292,6 +299,7 @@
     <span class="ident">simconnect</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">simconnect_sys</span>::<span class="ident">SimConnect</span><span class="op">&gt;</span>,
     <span class="ident">state</span>: <span class="ident">Aircraft</span>,
     <span class="ident">last_update</span>: <span class="ident">Instant</span>,
+    <span class="ident">sim_start</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">Time</span><span class="op">&gt;</span>,
     <span class="ident">recorder</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">wt_flight_recorder</span>::<span class="ident">FlightDataRecorder</span><span class="op">&lt;</span><span class="ident">Snapshot</span><span class="op">&gt;</span><span class="op">&gt;</span>,
 }
 
@@ -313,6 +321,7 @@
             <span class="ident">simconnect</span>,
             <span class="ident">state</span>: <span class="ident">Aircraft</span>::<span class="ident">default</span>(),
             <span class="ident">last_update</span>: <span class="ident">Instant</span>::<span class="ident">now</span>(),
+            <span class="ident">sim_start</span>: <span class="prelude-val">None</span>,
             <span class="ident">recorder</span>,
         };
 
@@ -331,9 +340,14 @@
             <span class="comment">// self.simconnect.dispatch(&amp;mut dispatcher);</span>
         }
 
-        <span class="kw">if</span> <span class="ident">now</span>.<span class="ident">duration_since</span>(<span class="self">self</span>.<span class="ident">last_update</span>) <span class="op">&gt;</span> <span class="ident">Duration</span>::<span class="ident">from_millis</span>(<span class="number">50</span>) {
-            <span class="kw">let</span> <span class="ident">delta_t</span> <span class="op">=</span> <span class="ident">Time</span>::<span class="ident">new</span>::<span class="op">&lt;</span><span class="ident">second</span><span class="op">&gt;</span>(<span class="ident">draw_data</span>.<span class="ident">dt</span>);
-            <span class="kw">let</span> <span class="ident">sim_time</span> <span class="op">=</span> <span class="ident">Time</span>::<span class="ident">new</span>::<span class="op">&lt;</span><span class="ident">second</span><span class="op">&gt;</span>(<span class="ident">draw_data</span>.<span class="ident">t</span>);
+        <span class="kw">let</span> <span class="ident">duration</span> <span class="op">=</span> <span class="ident">now</span>.<span class="ident">duration_since</span>(<span class="self">self</span>.<span class="ident">last_update</span>);
+
+        <span class="kw">if</span> <span class="ident">duration</span> <span class="op">&gt;</span> <span class="ident">Duration</span>::<span class="ident">from_millis</span>(<span class="number">50</span>) {
+            <span class="kw">let</span> <span class="ident">delta_t</span> <span class="op">=</span> <span class="ident">Time</span>::<span class="ident">new</span>::<span class="op">&lt;</span><span class="ident">second</span><span class="op">&gt;</span>(<span class="ident">duration</span>.<span class="ident">as_secs_f64</span>());
+            <span class="kw">let</span> <span class="ident">start_time</span> <span class="op">=</span> <span class="kw-2">*</span><span class="self">self</span>
+                .<span class="ident">sim_start</span>
+                .<span class="ident">get_or_insert</span>(<span class="ident">Time</span>::<span class="ident">new</span>::<span class="op">&lt;</span><span class="ident">second</span><span class="op">&gt;</span>(<span class="ident">draw_data</span>.<span class="ident">t</span>));
+            <span class="kw">let</span> <span class="ident">sim_time</span> <span class="op">=</span> <span class="ident">Time</span>::<span class="ident">new</span>::<span class="op">&lt;</span><span class="ident">second</span><span class="op">&gt;</span>(<span class="ident">draw_data</span>.<span class="ident">t</span>) <span class="op">-</span> <span class="ident">start_time</span>;
 
             <span class="kw">let</span> <span class="ident">instruments</span> <span class="op">=</span> <span class="ident">Instruments</span> {
                 <span class="ident">mach_number</span>: <span class="ident">interop</span>::<span class="ident">AirspeedMach</span>::<span class="ident">read</span>(),
