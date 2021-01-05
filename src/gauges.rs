@@ -13,7 +13,6 @@ use wt_cj4::{
 pub struct FdGauge {
     simconnect: Arc<simconnect_sys::SimConnect>,
     state: Aircraft,
-    last_update: Instant,
     sim_start: Option<Time>,
     recorder: Option<wt_flight_recorder::FlightDataRecorder<Snapshot>>,
 }
@@ -46,8 +45,6 @@ impl FdGauge {
     }
 
     pub fn on_update(&mut self, draw_data: &gauge_sys::ffi::GaugeDrawData) -> Result<(), ()> {
-        let now = Instant::now();
-
         {
             let sc = Arc::clone(&self.simconnect);
             sc.dispatch(self);
@@ -55,39 +52,35 @@ impl FdGauge {
             // self.simconnect.dispatch(&mut dispatcher);
         }
 
-        let duration = now.duration_since(self.last_update);
+        let delta_t = Time::new::<second>(draw_data.dt);
+        let start_time = *self
+            .sim_start
+            .get_or_insert(Time::new::<second>(draw_data.t));
+        let sim_time = Time::new::<second>(draw_data.t) - start_time;
 
-        if duration > Duration::from_millis(50) {
-            let delta_t = Time::new::<second>(duration.as_secs_f64());
-            let start_time = *self
-                .sim_start
-                .get_or_insert(Time::new::<second>(draw_data.t));
-            let sim_time = Time::new::<second>(draw_data.t) - start_time;
+        let instruments = Instruments {
+            mach_number: interop::AirspeedMach::read(),
+            ambient_density: interop::AmbientDensity::read(),
+            geometric_altitude: interop::GeometricAltitude::read(),
+            pressure_altitude: interop::PressureAltitude::read(),
+        };
 
-            let instruments = Instruments {
-                mach_number: interop::AirspeedMach::read(),
-                ambient_density: interop::AmbientDensity::read(),
-                geometric_altitude: interop::GeometricAltitude::read(),
-                pressure_altitude: interop::PressureAltitude::read(),
-            };
+        let engines = EngineData::new_from(|e| EngineReadings {
+            thrust: interop::Thrust::read_by_index(e),
+        });
 
-            let engines = EngineData::new_from(|e| EngineReadings {
-                thrust: interop::Thrust::read_by_index(e),
-            });
+        let environment = Environment {
+            instruments,
+            engines,
+        };
 
-            let environment = Environment {
-                instruments,
-                engines,
-            };
+        self.step(&environment, delta_t);
 
-            self.step(&environment, delta_t);
+        self.record(environment, sim_time, delta_t);
 
-            self.record(environment, sim_time, delta_t);
+        self.update_sim();
 
-            self.update_sim();
-
-            self.last_update = now;
-        }
+        self.last_update = now;
 
         Ok(())
     }
