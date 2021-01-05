@@ -14,6 +14,7 @@ pub struct FdGauge {
     simconnect: Arc<simconnect_sys::SimConnect>,
     state: Aircraft,
     last_update: Instant,
+    sim_start: Option<Time>,
     recorder: Option<wt_flight_recorder::FlightDataRecorder<Snapshot>>,
 }
 
@@ -35,6 +36,7 @@ impl FdGauge {
             simconnect,
             state: Aircraft::default(),
             last_update: Instant::now(),
+            sim_start: None,
             recorder,
         };
 
@@ -53,9 +55,14 @@ impl FdGauge {
             // self.simconnect.dispatch(&mut dispatcher);
         }
 
-        if now.duration_since(self.last_update) > Duration::from_millis(50) {
-            let delta_t = Time::new::<second>(draw_data.dt);
-            let sim_time = Time::new::<second>(draw_data.t);
+        let duration = now.duration_since(self.last_update);
+
+        if duration > Duration::from_millis(50) {
+            let delta_t = Time::new::<second>(duration.as_secs_f64());
+            let start_time = *self
+                .sim_start
+                .get_or_insert(Time::new::<second>(draw_data.t));
+            let sim_time = Time::new::<second>(draw_data.t) - start_time;
 
             let instruments = Instruments {
                 mach_number: interop::AirspeedMach::read(),
