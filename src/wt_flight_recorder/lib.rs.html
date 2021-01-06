@@ -180,7 +180,7 @@
 <span class="doccomment">///</span>
 <span class="doccomment">/// Big thanks goes to _devsnek_ for working with me to figure out how to get</span>
 <span class="doccomment">/// around the issue in the broken MSFS WASI implementation.</span>
-<span class="comment">// #[cfg(target_os = &quot;wasi&quot;)]</span>
+<span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">target_os</span> <span class="op">=</span> <span class="string">&quot;wasi&quot;</span>)]</span>
 <span class="attribute">#[<span class="ident">no_mangle</span>]</span>
 <span class="kw">unsafe</span> <span class="kw">extern</span> <span class="string">&quot;C&quot;</span> <span class="kw">fn</span> <span class="ident">__wasilibc_find_relpath</span>(
     <span class="ident">path</span>: <span class="kw-2">*</span><span class="kw">const</span> <span class="ident">std</span>::<span class="ident">os</span>::<span class="ident">raw</span>::<span class="ident">c_char</span>,

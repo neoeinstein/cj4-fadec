@@ -302,7 +302,7 @@
 
     <span class="doccomment">/// Reads the associated aircraft variable</span>
     <span class="doccomment">///</span>
-    <span class="doccomment">/// For uninexed variables, pass `0` as `index`.</span>
+    <span class="doccomment">/// For unindexed variables, pass `0` as `index`.</span>
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">read</span>(<span class="self">self</span>, <span class="ident">unit</span>: <span class="ident">RawUnit</span>, <span class="ident">index</span>: <span class="ident">u32</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">f64</span> {
         <span class="kw">unsafe</span> { <span class="ident">aircraft_varget</span>(<span class="self">self</span>, <span class="ident">unit</span>, <span class="ident">index</span>) }
     }
