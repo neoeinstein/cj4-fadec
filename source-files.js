@@ -6,5 +6,5 @@ sourcesIndex["wt_cj4"] = {"name":"","files":["control_params.rs","engines.rs","f
 sourcesIndex["wt_cj4_wasm"] = {"name":"","files":["gauges.rs","interop.rs","lib.rs"]};
 sourcesIndex["wt_flight_recorder"] = {"name":"","files":["flight_data_recorder.rs","lib.rs"]};
 sourcesIndex["wt_flight_to_csv"] = {"name":"","files":["main.rs"]};
-sourcesIndex["wt_systems"] = {"name":"","files":["lib.rs","pid.rs","testing.rs"]};
+sourcesIndex["wt_systems"] = {"name":"","dirs":[{"name":"pid","files":["integral_zeroing.rs","mod.rs","wescott.rs"]}],"files":["lib.rs","testing.rs"]};
 createSourceSidebar();

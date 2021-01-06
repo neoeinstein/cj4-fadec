@@ -1,0 +1,1 @@
+initSidebarItems({"struct":[["PidConfiguration","Configuration for a PID controller"],["PidController","The PID controller"]]});
