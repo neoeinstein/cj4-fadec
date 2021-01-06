@@ -47,7 +47,7 @@ pub use flight_data_recorder::FlightDataRecorder;
 ///
 /// Big thanks goes to _devsnek_ for working with me to figure out how to get
 /// around the issue in the broken MSFS WASI implementation.
-// #[cfg(target_os = "wasi")]
+#[cfg(target_os = "wasi")]
 #[no_mangle]
 unsafe extern "C" fn __wasilibc_find_relpath(
     path: *const std::os::raw::c_char,

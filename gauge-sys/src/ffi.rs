@@ -133,7 +133,7 @@ impl RawAircraftVariable {
 
     /// Reads the associated aircraft variable
     ///
-    /// For uninexed variables, pass `0` as `index`.
+    /// For unindexed variables, pass `0` as `index`.
     pub fn read(self, unit: RawUnit, index: u32) -> f64 {
         unsafe { aircraft_varget(self, unit, index) }
     }
