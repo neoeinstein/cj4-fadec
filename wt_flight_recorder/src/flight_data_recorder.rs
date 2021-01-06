@@ -1,7 +1,7 @@
 use flate2::write::GzEncoder;
 use std::{fmt, fs, marker::PhantomData};
 
-const MAX_EVENTS_PER_FILE: u32 = 20 * 60 * 15;
+const MAX_EVENTS_PER_FILE: u32 = 1000; //20 * 60 * 15;
 
 /// A flight data recorder for aircraft data
 ///
@@ -42,7 +42,7 @@ const MAX_EVENTS_PER_FILE: u32 = 20 * 60 * 15;
 
 pub struct FlightDataRecorder<T> {
     events: u32,
-    file: u32,
+    file_num: u32,
     prefix: String,
     writer: GzEncoder<fs::File>,
     _phantom: PhantomData<T>,
@@ -52,7 +52,7 @@ impl<T> fmt::Debug for FlightDataRecorder<T> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         f.debug_struct("FlightDataRecorder")
             .field("events", &self.events)
-            .field("file", &self.file)
+            .field("file", &self.file_num)
             .field("prefix", &self.prefix)
             .field("writer", &"<boxed>")
             .finish()
@@ -64,10 +64,11 @@ impl<T> FlightDataRecorder<T> {
     pub fn new() -> Result<Self, Box<dyn std::error::Error>> {
         let prefix = format!("{}", chrono::Utc::now().format("%Y-%m-%dT%H-%M-%SZ"));
         println!("Logging using the {} prefix", prefix);
-        let writer = open_file(&prefix, 1)?;
+        let mut file_num = 0;
+        let writer = open_file(&prefix, &mut file_num)?;
         Ok(FlightDataRecorder {
             events: 0,
-            file: 1,
+            file_num,
             prefix,
             writer,
             _phantom: PhantomData,
@@ -75,12 +76,16 @@ impl<T> FlightDataRecorder<T> {
     }
 
     fn manage_files(&mut self) {
-        if self.events > MAX_EVENTS_PER_FILE {
-            self.file += 1;
-            if let Ok(w) = open_file(&self.prefix, self.file) {
-                self.writer = w;
-                self.events = 0;
+        if self.events >= MAX_EVENTS_PER_FILE {
+            println!("Recorded {} events; rotating...", self.events);
+            match open_file(&self.prefix, &mut self.file_num) {
+                Ok(w) => self.writer = w,
+                Err(err) => println!(
+                    "Error opening next file for logging; will try again later: {}",
+                    err
+                ),
             }
+            self.events = 0;
         }
     }
 }
@@ -100,10 +105,16 @@ where
     }
 }
 
-fn open_file(prefix: &str, file: u32) -> Result<GzEncoder<fs::File>, Box<dyn std::error::Error>> {
-    let filename = format!(r#"\work\{}_{:02}.msgpack.gz"#, prefix, file);
+fn open_file(
+    prefix: &str,
+    file_num: &mut u32,
+) -> Result<GzEncoder<fs::File>, Box<dyn std::error::Error>> {
+    let next = *file_num + 1;
+    let filename = format!(r#"\work\{}_{:02}.msgpack.gz"#, prefix, next);
+    println!("Opening {} for logging", &filename[..filename.len() - 2]);
     let file = std::fs::File::create(&filename)?;
-    println!("Opened {} for logging", filename);
+    println!("Opened {} for logging", &filename[..filename.len() - 2]);
+    *file_num = next;
     Ok(flate2::write::GzEncoder::new(
         file,
         flate2::Compression::best(),

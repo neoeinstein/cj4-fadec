@@ -47,7 +47,7 @@ pub use flight_data_recorder::FlightDataRecorder;
 ///
 /// Big thanks goes to _devsnek_ for working with me to figure out how to get
 /// around the issue in the broken MSFS WASI implementation.
-#[cfg(target_os = "wasi")]
+// #[cfg(target_os = "wasi")]
 #[no_mangle]
 unsafe extern "C" fn __wasilibc_find_relpath(
     path: *const std::os::raw::c_char,
@@ -92,12 +92,17 @@ unsafe extern "C" fn __wasilibc_find_relpath(
 
     let rust_path = std::ffi::CStr::from_ptr(path).to_str().unwrap();
     for (fd, prefix) in &PREOPENS {
+        println!("rust_path: {}, fd: {}, prefix: {}", rust_path, fd, prefix);
         if rust_path.starts_with(prefix) {
             if rust_path.len() == prefix.len() {
                 *relative_path = EMPTY;
             } else {
                 *relative_path = path.add(prefix.len());
                 loop {
+                    println!(
+                        "path: {:#08x?}, rel_path: {:#08x?}, char: {}",
+                        path, *relative_path, **relative_path as u8 as char
+                    );
                     if **relative_path == '\\' as i8 {
                         *relative_path = (*relative_path).add(1);
                     } else if **relative_path == '.' as i8 && *(*relative_path.add(1)) == '\\' as i8
@@ -111,6 +116,11 @@ unsafe extern "C" fn __wasilibc_find_relpath(
                     *relative_path = EMPTY;
                 }
             }
+            println!(
+                "final rel_path ({:#08x?}): {}",
+                *relative_path,
+                std::ffi::CStr::from_ptr(*relative_path).to_str().unwrap()
+            );
             return *fd as std::os::raw::c_int;
         }
     }

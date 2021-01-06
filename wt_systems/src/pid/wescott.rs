@@ -1,18 +1,15 @@
+//! PID implementation based on the the model described by Tim Wescott
+//!
+//! Follows the model described in the free [_PID Without a Ph. D._][Wes18]
+//! authored by Tim Wescott.
+//!
+//!   [Wes18]: https://www.wescottdesign.com/articles/pid/pidWithoutAPhd.pdf
+
+use super::{Derivative, ErrorRate, Integral, PidComponents, Proportion, RetainedError};
 use serde::{Deserialize, Serialize};
 use std::{fmt, ops};
 use uom::num_traits::{clamp, zero, Zero};
 use uom::si::f64::*;
-
-/// Over * In
-pub type RetainedError<Over, In> = <Over as ops::Mul<In>>::Output;
-/// Out / In
-pub type Proportion<Out, In> = <Out as ops::Div<In>>::Output;
-/// Out / (Over * In)
-pub type Integral<Out, In, Over> = <Out as ops::Div<RetainedError<Over, In>>>::Output;
-/// Over / In
-pub type Derivative<Over, In> = <Over as ops::Div<In>>::Output;
-/// In / Over
-pub type ErrorRate<In, Over> = <In as ops::Div<Over>>::Output;
 
 /// Configuration for a PID controller
 ///
@@ -22,27 +19,29 @@ pub type ErrorRate<In, Over> = <In as ops::Div<Over>>::Output;
 /// are only for demonstration and are not assured to be convergent of stable.
 ///
 /// ```
-/// use wt_systems::PidConfiguration;
+/// use wt_systems::pid::wescott::PidConfiguration;
 /// use uom::si::f64::{Velocity, Ratio, Time};
 /// use uom::si::velocity::meter_per_second;
 /// use uom::si::ratio::{basis_point, ratio};
 /// use uom::si::time::second;
 ///
-/// let config = PidConfiguration {
+/// let config = PidConfiguration::<Velocity> {
 ///     gain_proportion: Ratio::new::<basis_point>(1.) / Velocity::new::<meter_per_second>(10.),
 ///     gain_integral: Ratio::new::<basis_point>(10.) / (Velocity::new::<meter_per_second>(3.) * Time::new::<second>(1.)),
 ///     gain_derivative: Time::new::<second>(1.0) / Velocity::new::<meter_per_second>(0.2),
 ///     output_range: (Ratio::new::<ratio>(-1.), Ratio::new::<ratio>(1.)),
-///     derivative_range: (Ratio::new::<ratio>(-3.), Ratio::new::<ratio>(3.)),
-///     tolerance: Velocity::new::<meter_per_second>(0.5),
+///     integral_range: (
+///         Velocity::new::<meter_per_second>(-30.) * Time::new::<second>(1.),
+///         Velocity::new::<meter_per_second>(30.) * Time::new::<second>(1.)
+///     ),
 /// };
 /// ```
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(
     feature = "serde",
     serde(bound(
-        serialize = "In: Serialize, Proportion<Ratio, In>: Serialize, Integral<Ratio, In, Time>: Serialize, Derivative<Time, In>: Serialize",
-        deserialize = "for<'d> In: Deserialize<'d>, for<'d> Proportion<Ratio, In>: Deserialize<'d>, for<'d> Integral<Ratio, In, Time>: Deserialize<'d>, for<'d> Derivative<Time, In>: Deserialize<'d>",
+        serialize = "In: Serialize, Proportion<Ratio, In>: Serialize, Integral<Ratio, In, Time>: Serialize, Derivative<Time, In>: Serialize, RetainedError<Time, In>: Serialize",
+        deserialize = "for<'d> In: Deserialize<'d>, for<'d> Proportion<Ratio, In>: Deserialize<'d>, for<'d> Integral<Ratio, In, Time>: Deserialize<'d>, for<'d> Derivative<Time, In>: Deserialize<'d>, for<'d> RetainedError<Time, In>: Deserialize<'d>",
     ))
 )]
 pub struct PidConfiguration<In>
@@ -74,17 +73,7 @@ where
     ///
     /// Contributions to the output value from the derivative component will be
     /// clamped to the range specified.
-    pub derivative_range: (Ratio, Ratio),
-
-    /// Tolerance for deviations from the target value.
-    ///
-    /// When a value is within `tolerance` of the target value, the PID will
-    /// deactivate and will not command any change in the output value and will
-    /// slough off any remaining momentum from the integral component.
-    ///
-    /// When the deviation from the target value next exceeds the tolerance,
-    /// the PID will again reactivate and command corrections.
-    pub tolerance: In,
+    pub integral_range: (RetainedError<Time, In>, RetainedError<Time, In>),
 }
 
 impl<In> Clone for PidConfiguration<In>
@@ -95,6 +84,7 @@ where
     Proportion<Ratio, In>: Clone,
     Integral<Ratio, In, Time>: Clone,
     Derivative<Time, In>: Clone,
+    RetainedError<Time, In>: Clone,
 {
     #[inline(always)]
     fn clone(&self) -> Self {
@@ -103,8 +93,7 @@ where
             gain_integral: self.gain_integral.clone(),
             gain_derivative: self.gain_derivative.clone(),
             output_range: self.output_range,
-            derivative_range: self.derivative_range,
-            tolerance: self.tolerance.clone(),
+            integral_range: self.integral_range.clone(),
         }
     }
 }
@@ -117,6 +106,7 @@ where
     Proportion<Ratio, In>: Copy,
     Integral<Ratio, In, Time>: Copy,
     Derivative<Time, In>: Copy,
+    RetainedError<Time, In>: Copy,
 {
 }
 
@@ -128,6 +118,7 @@ where
     Proportion<Ratio, In>: PartialEq,
     Integral<Ratio, In, Time>: PartialEq,
     Derivative<Time, In>: PartialEq,
+    RetainedError<Time, In>: PartialEq,
 {
     #[inline]
     fn eq(&self, other: &Self) -> bool {
@@ -135,8 +126,7 @@ where
             && self.gain_integral == other.gain_integral
             && self.gain_proportion == other.gain_proportion
             && self.output_range == other.output_range
-            && self.derivative_range == other.derivative_range
-            && self.tolerance == other.tolerance
+            && self.integral_range == other.integral_range
     }
 }
 
@@ -148,6 +138,7 @@ where
     Proportion<Ratio, In>: fmt::Debug,
     Integral<Ratio, In, Time>: fmt::Debug,
     Derivative<Time, In>: fmt::Debug,
+    RetainedError<Time, In>: fmt::Debug,
 {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         f.debug_struct("PidConfiguration")
@@ -159,14 +150,24 @@ where
                 &format_args!("[{:?}, {:?}]", &self.output_range.0, &self.output_range.1),
             )
             .field(
-                "derivative_range",
+                "integral_range",
                 &format_args!(
                     "[{:?}, {:?}]",
-                    &self.derivative_range.0, &self.derivative_range.1
+                    &self.integral_range.0, &self.integral_range.1
                 ),
             )
-            .field("tolerance", &self.tolerance)
             .finish()
+    }
+}
+
+impl<In> super::Configuration for PidConfiguration<In>
+where
+    Ratio: ops::Div<In> + ops::Div<RetainedError<Time, In>>,
+    Time: ops::Mul<In> + ops::Div<In>,
+{
+    #[inline(always)]
+    fn clamp_output(&self, output: Ratio) -> Ratio {
+        clamp(output, self.output_range.0, self.output_range.1)
     }
 }
 
@@ -177,10 +178,15 @@ where
 /// Tuning a PID controler is a non trivial task. The values specified below
 /// are only for demonstration and are not assured to be convergent of stable.
 ///
+/// Follows the model described in the free [_PID Without a Ph. D._][Wes18]
+/// authored by Tim Wescott.
+///
+///   [Wes18]: https://www.wescottdesign.com/articles/pid/pidWithoutAPhd.pdf
+///
 /// ```
-/// use wt_systems::{PidConfiguration, PidController};
+/// use wt_systems::pid::{Pid, wescott::{PidConfiguration, PidController}};
 /// use uom::si::f64::{Velocity, Ratio, Time};
-/// use uom::si::velocity::meter_per_second;
+/// use uom::si::velocity::{meter_per_second};
 /// use uom::si::ratio::{basis_point, ratio};
 /// use uom::si::time::second;
 ///
@@ -189,14 +195,16 @@ where
 ///     gain_integral: Ratio::new::<basis_point>(10.) / (Velocity::new::<meter_per_second>(3.) * Time::new::<second>(1.)),
 ///     gain_derivative: Time::new::<second>(1.0) / Velocity::new::<meter_per_second>(0.2),
 ///     output_range: (Ratio::new::<ratio>(-1.), Ratio::new::<ratio>(1.)),
-///     derivative_range: (Ratio::new::<ratio>(-3.), Ratio::new::<ratio>(3.)),
-///     tolerance: Velocity::new::<meter_per_second>(0.5),
+///     integral_range: (
+///         Velocity::new::<meter_per_second>(-30.) * Time::new::<second>(1.),
+///         Velocity::new::<meter_per_second>(30.) * Time::new::<second>(1.)
+///     ),
 /// };
 ///
 /// let mut pid = PidController::default();
 ///
 /// let result = pid.step(
-///     Velocity::new::<meter_per_second>(5000.),
+///     Velocity::new::<meter_per_second>(500.),
 ///     &config,
 ///     Velocity::new::<meter_per_second>(4500.),
 ///     Time::new::<second>(5.),
@@ -215,8 +223,8 @@ where
     Ratio: ops::Div<In> + ops::Div<RetainedError<Time, In>>,
     Time: ops::Mul<In> + ops::Div<In>,
 {
-    /// Error identified during the last step
-    pub prior_error: In,
+    /// Plant value from the last step
+    pub prior_plant_value: In,
 
     /// Retained error (momentum) due to accumulated errors over time
     pub retained_error: RetainedError<Time, In>,
@@ -232,7 +240,7 @@ where
     #[inline(always)]
     fn clone(&self) -> Self {
         Self {
-            prior_error: self.prior_error.clone(),
+            prior_plant_value: self.prior_plant_value.clone(),
             retained_error: self.retained_error.clone(),
         }
     }
@@ -256,7 +264,7 @@ where
 {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         f.debug_struct("PidController")
-            .field("prior_error", &self.prior_error)
+            .field("prior_plant_value", &self.prior_plant_value)
             .field("retained_error", &self.retained_error)
             .finish()
     }
@@ -272,7 +280,7 @@ where
     #[inline]
     fn default() -> Self {
         Self {
-            prior_error: zero(),
+            prior_plant_value: zero(),
             retained_error: zero(),
         }
     }
@@ -287,7 +295,8 @@ where
 {
     #[inline]
     fn eq(&self, other: &Self) -> bool {
-        self.prior_error == other.prior_error && self.retained_error == other.retained_error
+        self.prior_plant_value == other.prior_plant_value
+            && self.retained_error == other.retained_error
     }
 }
 
@@ -298,17 +307,17 @@ where
 {
     /// Constructs a PID controller with existing values
     #[inline]
-    pub fn with_initial(prior_error: In, retained_error: RetainedError<Time, In>) -> Self {
+    pub fn with_initial(initial_plant_value: In, retained_error: RetainedError<Time, In>) -> Self {
         Self {
-            prior_error,
+            prior_plant_value: initial_plant_value,
             retained_error,
         }
     }
 
-    /// Obtains a reference to the current prior error value
+    /// Obtains a reference to the plant value from the previous step
     #[inline]
-    pub fn prior_error_ref(&self) -> &In {
-        &self.prior_error
+    pub fn prior_plant_value_ref(&self) -> &In {
+        &self.prior_plant_value
     }
 
     /// Obtains a reference to the current retained error value
@@ -324,10 +333,10 @@ where
     Ratio: ops::Div<In> + ops::Div<RetainedError<Time, In>>,
     Time: ops::Mul<In> + ops::Div<In>,
 {
-    /// Gets the current prior error value
+    /// Gets the current plant value from the previous step
     #[inline]
-    pub fn prior_error(&self) -> In {
-        self.prior_error.clone()
+    pub fn prior_plant_value(&self) -> In {
+        self.prior_plant_value.clone()
     }
 }
 
@@ -360,190 +369,54 @@ where
     }
 }
 
-impl<In> PidController<In>
+impl<In> super::Pid<In> for PidController<In>
 where
     In: PartialOrd
         + Zero
         + ops::Sub<In, Output = In>
-        + ops::Neg<Output = In>
         + ops::Div<Time>
+        + ops::Mul<Time, Output = RetainedError<Time, In>>
         + Copy,
-    Ratio: Zero + PartialOrd + ops::Div<In> + ops::Div<RetainedError<Time, In>> + Copy,
+    Ratio: ops::Div<In> + ops::Div<RetainedError<Time, In>>,
+    Time: ops::Mul<In> + ops::Div<In>,
     Proportion<Ratio, In>: ops::Mul<In, Output = Ratio> + Copy,
-    Integral<Ratio, In, Time>: Copy,
-    Time: ops::Mul<In> + ops::Div<In> + Copy,
+    Integral<Ratio, In, Time>: ops::Mul<RetainedError<Time, In>, Output = Ratio> + Copy,
     Derivative<Time, In>: ops::Mul<ErrorRate<In, Time>, Output = Ratio> + Copy,
-    RetainedError<Time, In>: Zero
-        + ops::Div<f64, Output = RetainedError<Time, In>>
-        + ops::Mul<Integral<Ratio, In, Time>, Output = Ratio>
-        + Copy,
-    ErrorRate<In, Time>: ops::Mul<ErrorRate<In, Time>>,
+    RetainedError<Time, In>: ops::AddAssign + PartialOrd + Copy,
 {
-    /// Steps the PID controller forward in time
-    ///
-    /// There may be times where it is useful (perhaps due to a change in
-    /// state of the system) to switch out the PID configuration. This can
-    /// allow for switching to PIDs with different behavior that better match
-    /// different phases.
-    pub fn step(
+    type Configuration = PidConfiguration<In>;
+
+    fn step_with_components(
         &mut self,
-        goal: In,
-        config: &PidConfiguration<In>,
-        current: In,
+        error: In,
+        config: &Self::Configuration,
+        plant_value: In,
         delta_t: Time,
-    ) -> Ratio {
-        let error = goal - current;
-
-        // If the error is within tolerances, remove momentum and don't command a change
-        if error < config.tolerance && -config.tolerance < error {
-            self.retained_error = zero();
-            return zero();
-        }
-
+    ) -> PidComponents {
         // Proportional
-        let gained_error: Ratio = config.gain_proportion * error;
+        let proportional: Ratio = config.gain_proportion * error;
 
         // Integral
-        // If the new error has changed signs, remove momentum
-        let retained_error: RetainedError<Time, In> = if (error > zero())
-            != (self.prior_error >= zero())
-        {
-            zero()
-        } else {
-            self.retained_error + (delta_t * error) + (delta_t * (error - self.prior_error) / 2.)
-        };
-        let gained_integral: Ratio = retained_error * config.gain_integral;
+        self.retained_error += error * delta_t;
+        self.retained_error = clamp(
+            self.retained_error,
+            config.integral_range.0,
+            config.integral_range.1,
+        );
+        let integral: Ratio = config.gain_integral * self.retained_error;
 
         // Derivative
-        let error_over_time: ErrorRate<In, Time> = (error - self.prior_error) / delta_t;
-        let raw_gained_derivative: Ratio = config.gain_derivative * error_over_time;
-        let gained_derivative: Ratio = clamp(
-            raw_gained_derivative,
-            config.derivative_range.0,
-            config.derivative_range.1,
-        );
+        let rate_of_change = (plant_value - self.prior_plant_value) / delta_t;
+        let derivative: Ratio = config.gain_derivative * rate_of_change;
 
-        // Combination
-        let raw_output: Ratio = gained_error + gained_integral + gained_derivative;
-        let output: Ratio = clamp(raw_output, config.output_range.0, config.output_range.1);
+        self.prior_plant_value = plant_value;
 
         // println!("Output: {} ({}): Derivative: {} ({}), Integral: {}, proportion: {}", output.into_format_args(ratio, uom::fmt::DisplayStyle::Abbreviation), raw_output.into_format_args(ratio, uom::fmt::DisplayStyle::Abbreviation), gained_derivative.into_format_args(ratio, uom::fmt::DisplayStyle::Abbreviation), raw_gained_derivative.into_format_args(ratio, uom::fmt::DisplayStyle::Abbreviation), gained_integral.into_format_args(ratio, uom::fmt::DisplayStyle::Abbreviation), gained_error.into_format_args(ratio, uom::fmt::DisplayStyle::Abbreviation));
 
-        self.prior_error = error;
-        self.retained_error = retained_error;
-        output
-    }
-}
-
-pub(crate) mod testing {
-    /// Provides a way to easily set up a test of a PID controller with certain
-    /// initial conditions, and verify the behavior at each intermediate step
-    #[macro_export]
-    macro_rules! pid_step_tests {
-        {
-            name: $name:ident,
-            config: $config:expr,
-            initial: $initial:expr,
-            steps: [
-                $({
-                    inputs: ($current:expr, $delta_t:expr),
-                    expect: ($expected_output:expr, $expected_retained_error:expr)$(,)?
-                }),*$(,)?
-            ],
-            tolerances: {
-                output: $output_tolerance:expr,
-                retained_error: $retained_error_tolerance:expr$(,)?
-            }$(,)?
-        } => {
-            #[test]
-            fn $name() {
-                let config = $config;
-                let mut state = $initial;
-                println!("Initial:    {:?}", state);
-
-                let mut step = 0;
-                let mut failed = false;
-                $(
-                    #[allow(unused_assignments)]
-                    {
-                        step += 1;
-                        let goal = ::uom::num_traits::zero();
-                        let current = $current;
-                        let delta_t = $delta_t;
-
-                        println!("Step {:>2} Goal: {:?}; Current: {:?}; Step: {:?}", step, goal, current, delta_t);
-
-                        let actual = state.step(goal, &config, -current, $delta_t);
-                        let expected = (
-                            $crate::PidController::with_initial(goal - current, $expected_retained_error),
-                            $expected_output
-                        );
-
-                        let difference = (
-                            $crate::PidController::with_initial(
-                                expected.0.prior_error() - state.prior_error(),
-                                expected.0.retained_error() - state.retained_error(),
-                            ),
-                            expected.1 - actual
-                        );
-
-                        println!("    Expected:   {:?}", expected);
-                        println!("    Actual:     {:?}", (state, actual));
-                        println!("    Difference: {:?}", difference);
-
-                        #[allow(clippy::float_cmp)]
-                        if state.prior_error() != expected.0.prior_error() && ::uom::num_traits::Zero::is_zero(&state.prior_error()) {
-                            eprintln!(" !!! error mismatch !!!");
-                            failed = true
-                        }
-
-                        if difference.0.retained_error() > $retained_error_tolerance || difference.0.retained_error() < -$retained_error_tolerance  {
-                            eprintln!(" !!! retained error mismatch !!!");
-                            failed = true;
-                        }
-
-                        if difference.1 > $output_tolerance || difference.1 < -$output_tolerance {
-                            eprintln!(" !!! output mismatch !!!");
-                            failed = true;
-                        }
-                    }
-                )*
-
-                if failed {
-                    panic!("One of the test steps had a result outside of tolerances");
-                }
-            }
-        };
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use uom::si::f64::{Ratio, Time, Velocity};
-    use uom::si::ratio::ratio;
-    use uom::si::time::second;
-    use uom::si::velocity::meter_per_second;
-
-    #[test]
-    fn test_valid_with_uom_1() {
-        let config = PidConfiguration {
-            gain_proportion: Ratio::new::<ratio>(1.) / Velocity::new::<meter_per_second>(10.),
-            gain_integral: Ratio::new::<ratio>(10.)
-                / (Velocity::new::<meter_per_second>(3.) * Time::new::<second>(1.)),
-            gain_derivative: Time::new::<second>(1.0) / Velocity::new::<meter_per_second>(0.2),
-            output_range: (Ratio::new::<ratio>(-1_000.), Ratio::new::<ratio>(1_000.)),
-            derivative_range: (Ratio::new::<ratio>(-1_000.), Ratio::new::<ratio>(1_000.)),
-            tolerance: Velocity::new::<meter_per_second>(0.5),
-        };
-
-        let mut pid = PidController::default();
-
-        let _output = pid.step(
-            Velocity::new::<meter_per_second>(500.),
-            &config,
-            Velocity::new::<meter_per_second>(450.),
-            Time::new::<second>(5.),
-        );
+        PidComponents {
+            proportional,
+            integral,
+            derivative,
+        }
     }
 }

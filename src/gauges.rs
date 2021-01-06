@@ -1,7 +1,6 @@
 use crate::interop;
 use simconnect_sys::{ffi::HResult, EventType, NotificationGroup};
 use std::sync::Arc;
-use std::time::{Duration, Instant};
 use uom::si::{f64::Time, time::second};
 use wt_cj4::{
     control_params::{ThrottleAxis, ThrottleMode, ThrottlePercent},
@@ -34,7 +33,6 @@ impl FdGauge {
         let gauge = FdGauge {
             simconnect,
             state: Aircraft::default(),
-            last_update: Instant::now(),
             sim_start: None,
             recorder,
         };
@@ -79,8 +77,6 @@ impl FdGauge {
         self.record(environment, sim_time, delta_t);
 
         self.update_sim();
-
-        self.last_update = now;
 
         Ok(())
     }

@@ -11,7 +11,5 @@
 #![deny(missing_debug_implementations, unused_must_use)]
 #![forbid(unsafe_code)]
 
-mod pid;
-
-pub use pid::{PidConfiguration, PidController};
+pub mod pid;
 pub mod testing;
