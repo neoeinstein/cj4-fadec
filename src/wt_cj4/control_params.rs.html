@@ -262,6 +262,28 @@
 <span id="259">259</span>
 <span id="260">260</span>
 <span id="261">261</span>
+<span id="262">262</span>
+<span id="263">263</span>
+<span id="264">264</span>
+<span id="265">265</span>
+<span id="266">266</span>
+<span id="267">267</span>
+<span id="268">268</span>
+<span id="269">269</span>
+<span id="270">270</span>
+<span id="271">271</span>
+<span id="272">272</span>
+<span id="273">273</span>
+<span id="274">274</span>
+<span id="275">275</span>
+<span id="276">276</span>
+<span id="277">277</span>
+<span id="278">278</span>
+<span id="279">279</span>
+<span id="280">280</span>
+<span id="281">281</span>
+<span id="282">282</span>
+<span id="283">283</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="doccomment">//! Control parameters for managing the CJ4</span>
 
@@ -303,6 +325,22 @@
             <span class="ident">ThrottleMode</span>::<span class="ident">Cruise</span> <span class="op">=</span><span class="op">&gt;</span> <span class="number">1.</span>,
             <span class="ident">ThrottleMode</span>::<span class="ident">Climb</span> <span class="op">=</span><span class="op">&gt;</span> <span class="number">2.</span>,
             <span class="ident">ThrottleMode</span>::<span class="ident">Takeoff</span> <span class="op">=</span><span class="op">&gt;</span> <span class="number">3.</span>,
+        }
+    }
+}
+
+<span class="kw">impl</span> <span class="ident">From</span><span class="op">&lt;</span><span class="ident">f64</span><span class="op">&gt;</span> <span class="kw">for</span> <span class="ident">ThrottleMode</span> {
+    <span class="kw">fn</span> <span class="ident">from</span>(<span class="ident">m</span>: <span class="ident">f64</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="self">Self</span> {
+        <span class="kw">if</span> <span class="ident">m</span> <span class="op">&lt;</span> <span class="number">1.</span> {
+            <span class="ident">ThrottleMode</span>::<span class="ident">Undefined</span>
+        } <span class="kw">else</span> <span class="kw">if</span> <span class="ident">m</span> <span class="op">&lt;</span> <span class="number">2.</span> {
+            <span class="ident">ThrottleMode</span>::<span class="ident">Cruise</span>
+        } <span class="kw">else</span> <span class="kw">if</span> <span class="ident">m</span> <span class="op">&lt;</span> <span class="number">3.</span> {
+            <span class="ident">ThrottleMode</span>::<span class="ident">Climb</span>
+        } <span class="kw">else</span> <span class="kw">if</span> <span class="ident">m</span> <span class="op">&lt;</span> <span class="number">4.</span> {
+            <span class="ident">ThrottleMode</span>::<span class="ident">Takeoff</span>
+        } <span class="kw">else</span> {
+            <span class="ident">ThrottleMode</span>::<span class="ident">Undefined</span>
         }
     }
 }
@@ -516,6 +554,12 @@
 <span class="kw">impl</span> <span class="ident">From</span><span class="op">&lt;</span><span class="ident">ThrottlePercent</span><span class="op">&gt;</span> <span class="kw">for</span> <span class="ident">f64</span> {
     <span class="kw">fn</span> <span class="ident">from</span>(<span class="ident">pos</span>: <span class="ident">ThrottlePercent</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="self">Self</span> {
         <span class="ident">pos</span>.<span class="number">0</span>
+    }
+}
+
+<span class="kw">impl</span> <span class="ident">From</span><span class="op">&lt;</span><span class="ident">f64</span><span class="op">&gt;</span> <span class="kw">for</span> <span class="ident">ThrottlePercent</span> {
+    <span class="kw">fn</span> <span class="ident">from</span>(<span class="ident">pos</span>: <span class="ident">f64</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="self">Self</span> {
+        <span class="self">Self</span>(<span class="ident">pos</span>)
     }
 }
 

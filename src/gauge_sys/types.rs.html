@@ -148,6 +148,18 @@
 <span id="145">145</span>
 <span id="146">146</span>
 <span id="147">147</span>
+<span id="148">148</span>
+<span id="149">149</span>
+<span id="150">150</span>
+<span id="151">151</span>
+<span id="152">152</span>
+<span id="153">153</span>
+<span id="154">154</span>
+<span id="155">155</span>
+<span id="156">156</span>
+<span id="157">157</span>
+<span id="158">158</span>
+<span id="159">159</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">ffi</span>;
 
@@ -258,8 +270,8 @@
 
 <span class="doccomment">/// A custom named variable that can be interacted with in the Gauge API</span>
 <span class="kw">pub</span> <span class="kw">trait</span> <span class="ident">NamedVariable</span> {
-    <span class="doccomment">/// The type of the variable (must be convertable to `f64`)</span>
-    <span class="kw">type</span> <span class="ident">Value</span>: <span class="ident">Into</span><span class="op">&lt;</span><span class="ident">f64</span><span class="op">&gt;</span>;
+    <span class="doccomment">/// The type of the variable</span>
+    <span class="kw">type</span> <span class="ident">Value</span>: <span class="ident">Into</span><span class="op">&lt;</span><span class="ident">f64</span><span class="op">&gt;</span> <span class="op">+</span> <span class="ident">From</span><span class="op">&lt;</span><span class="ident">f64</span><span class="op">&gt;</span>;
 
     <span class="doccomment">/// Obtains the raw FFI identifier for this named variable</span>
     <span class="kw">fn</span> <span class="ident">as_raw_named_variable</span>() <span class="op">-</span><span class="op">&gt;</span> <span class="ident">ffi</span>::<span class="ident">RawNamedVariable</span>;
@@ -277,9 +289,21 @@
             <span class="kw">const</span> <span class="ident">VARIABLE_NAME</span>: <span class="kw-2">&amp;</span><span class="lifetime">&#39;static</span> <span class="ident">str</span> <span class="op">=</span> <span class="macro">concat</span><span class="macro">!</span>(<span class="macro-nonterminal">$</span><span class="macro-nonterminal">name</span>, <span class="string">&quot;\0&quot;</span>);
 
             <span class="doccomment">/// Sets the variable as a raw value</span>
+            <span class="doccomment">///</span>
+            <span class="doccomment">/// The value must be convertible into a raw 64-bit float</span>
             <span class="attribute">#[<span class="ident">inline</span>]</span>
-            <span class="kw">fn</span> <span class="ident">set_raw</span>(<span class="ident">value</span>: <span class="op">&lt;</span><span class="self">Self</span> <span class="kw">as</span> <span class="macro-nonterminal">$</span><span class="kw">crate</span>::<span class="macro-nonterminal">NamedVariable</span><span class="op">&gt;</span>::<span class="ident">Value</span>) {
+            <span class="kw">fn</span> <span class="ident">set_raw</span>(<span class="ident">value</span>: <span class="op">&lt;</span><span class="self">Self</span> <span class="kw">as</span> <span class="macro-nonterminal">$</span><span class="kw">crate</span>::<span class="macro-nonterminal">NamedVariable</span><span class="op">&gt;</span>::<span class="ident">Value</span>)
+            {
                 <span class="macro-nonterminal">$</span><span class="kw">crate</span>::<span class="macro-nonterminal">ffi</span>::<span class="ident">RawNamedVariable</span>::<span class="ident">set</span>(<span class="op">&lt;</span><span class="self">Self</span> <span class="kw">as</span> <span class="macro-nonterminal">$</span><span class="kw">crate</span>::<span class="macro-nonterminal">NamedVariable</span><span class="op">&gt;</span>::<span class="ident">as_raw_named_variable</span>(), <span class="ident">value</span>.<span class="ident">into</span>())
+            }
+
+            <span class="doccomment">/// Reads the variable as a raw value</span>
+            <span class="doccomment">///</span>
+            <span class="doccomment">/// The value must be convertible from a raw 64-bit float</span>
+            <span class="attribute">#[<span class="ident">inline</span>]</span>
+            <span class="kw">fn</span> <span class="ident">read_raw</span>() <span class="op">-</span><span class="op">&gt;</span> <span class="op">&lt;</span><span class="self">Self</span> <span class="kw">as</span> <span class="macro-nonterminal">$</span><span class="kw">crate</span>::<span class="macro-nonterminal">NamedVariable</span><span class="op">&gt;</span>::<span class="ident">Value</span>
+            {
+                <span class="macro-nonterminal">$</span><span class="kw">crate</span>::<span class="macro-nonterminal">ffi</span>::<span class="ident">RawNamedVariable</span>::<span class="ident">get</span>(<span class="op">&lt;</span><span class="self">Self</span> <span class="kw">as</span> <span class="macro-nonterminal">$</span><span class="kw">crate</span>::<span class="macro-nonterminal">NamedVariable</span><span class="op">&gt;</span>::<span class="ident">as_raw_named_variable</span>()).<span class="ident">into</span>()
             }
         }
 
