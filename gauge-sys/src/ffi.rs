@@ -14,6 +14,7 @@ extern "C" {
     fn unregister_all_named_vars();
     fn register_named_variable(name: *const c_char) -> RawNamedVariable;
     fn set_named_variable_value(var: RawNamedVariable, value: f64);
+    fn get_named_variable_value(var: RawNamedVariable) -> f64;
     fn aircraft_varget(var: RawAircraftVariable, unit: RawUnit, index: u32) -> f64;
 }
 
@@ -161,5 +162,10 @@ impl RawNamedVariable {
     /// Sets the associated named variable to the provided value
     pub fn set(self, value: f64) {
         unsafe { set_named_variable_value(self, value) }
+    }
+
+    /// Gets the value of the associated named variable
+    pub fn get(self) -> f64 {
+        unsafe { get_named_variable_value(self) }
     }
 }

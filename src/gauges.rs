@@ -18,13 +18,6 @@ pub struct FdGauge {
 
 impl FdGauge {
     pub fn new() -> Result<Self, HResult> {
-        let recorder = match wt_flight_recorder::FlightDataRecorder::new() {
-            Ok(recorder) => Some(recorder),
-            Err(err) => {
-                eprintln!("Error creating flight data recorder: {:?}", err);
-                None
-            }
-        };
         let simconnect = Arc::new(simconnect_sys::SimConnect::new("FdGauge")?);
 
         simconnect.register_notification_group_enum::<interop::NotificationGroup>()?;
@@ -34,7 +27,7 @@ impl FdGauge {
             simconnect,
             state: Aircraft::default(),
             sim_start: None,
-            recorder,
+            recorder: None,
         };
 
         println!("All set up: {:?}", gauge);
@@ -102,6 +95,15 @@ impl FdGauge {
     }
 
     fn record(&mut self, environment: Environment, sim_time: Time, delta_t: Time) {
+        match (
+            interop::FlightDataRecorderEnabled::read(),
+            self.recorder.is_some(),
+        ) {
+            (false, true) => self.recorder = None,
+            (true, false) => self.recorder = initialize_flight_data_recorder(),
+            _ => {}
+        }
+
         if let Some(r) = &mut self.recorder {
             r.publish(&Snapshot {
                 aircraft: self.state,
@@ -229,6 +231,16 @@ impl FdGauge {
                     }
                 }
             }
+        }
+    }
+}
+
+fn initialize_flight_data_recorder() -> Option<wt_flight_recorder::FlightDataRecorder<Snapshot>> {
+    match wt_flight_recorder::FlightDataRecorder::new() {
+        Ok(recorder) => Some(recorder),
+        Err(err) => {
+            eprintln!("Error creating flight data recorder: {:?}", err);
+            None
         }
     }
 }

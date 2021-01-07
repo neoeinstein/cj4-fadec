@@ -42,6 +42,22 @@ impl From<ThrottleMode> for f64 {
     }
 }
 
+impl From<f64> for ThrottleMode {
+    fn from(m: f64) -> Self {
+        if m < 1. {
+            ThrottleMode::Undefined
+        } else if m < 2. {
+            ThrottleMode::Cruise
+        } else if m < 3. {
+            ThrottleMode::Climb
+        } else if m < 4. {
+            ThrottleMode::Takeoff
+        } else {
+            ThrottleMode::Undefined
+        }
+    }
+}
+
 impl fmt::Display for ThrottleMode {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let s = match self {
@@ -251,6 +267,12 @@ impl From<ThrottlePercent> for ThrottleAxis {
 impl From<ThrottlePercent> for f64 {
     fn from(pos: ThrottlePercent) -> Self {
         pos.0
+    }
+}
+
+impl From<f64> for ThrottlePercent {
+    fn from(pos: f64) -> Self {
+        Self(pos)
     }
 }
 

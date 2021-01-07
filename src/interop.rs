@@ -17,6 +17,7 @@ gauge_unit!(Feet: "Feet"; "Distance measured in feet");
 gauge_unit!(Number: "Number"; "A dimensionless value");
 gauge_unit!(Mach: "Mach"; "Velocity measures as a ratio of the speed of sound");
 gauge_unit!(SluggerSlugs: "Slug per cubic feet"; "Pressure measured in slugs per cubic foot");
+gauge_unit!(Bool: "Bool"; "A boolean value which is either off (0) or on (1)");
 
 indexed_aircraft_variable!(Throttle(Percent): "GENERAL ENG THROTTLE LEVER POSITION"; "Engine throttle lever position");
 indexed_aircraft_variable!(Thrust(Pounds): "TURB ENG JET THRUST"; "Turbine engine jet thrust");
@@ -31,6 +32,7 @@ named_variable!(Throttle2Mode(ThrottleMode): "THROTTLE2_MODE"; "The FADEC mode o
 
 named_variable!(Throttle1Position(ThrottlePercent): "Throttle1_Pos"; "The visual position of the engine 1 throttle lever");
 named_variable!(Throttle2Position(ThrottlePercent): "Throttle2_Pos"; "The visual position of the engine 2 throttle lever");
+named_variable!(FlightDataRecorderEnabled(Boolean): "FLIGHT_DATA_RECORDER_ENABLED"; "Whether or not the flight data recorder should be enabled");
 
 fn engine_number_to_sim_index(engine: EngineNumber) -> u32 {
     match engine {
@@ -88,6 +90,43 @@ impl GeometricAltitude {
 impl AmbientDensity {
     pub fn read() -> MassDensity {
         MassDensity::new::<slug_per_cubic_foot>(Self::read_raw())
+    }
+}
+
+impl FlightDataRecorderEnabled {
+    pub fn read() -> bool {
+        Self::read_raw() == Boolean::True
+    }
+}
+
+/// A boolean value received through the Gauge API
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
+pub enum Boolean {
+    /// False (0.0)
+    False,
+
+    /// True (1.0)
+    True,
+}
+
+impl From<f64> for Boolean {
+    #[inline]
+    fn from(v: f64) -> Self {
+        if v > 0. {
+            Self::True
+        } else {
+            Self::False
+        }
+    }
+}
+
+impl From<Boolean> for f64 {
+    #[inline]
+    fn from(v: Boolean) -> Self {
+        match v {
+            Boolean::True => 1.,
+            Boolean::False => 0.,
+        }
     }
 }
 

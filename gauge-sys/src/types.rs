@@ -107,8 +107,8 @@ macro_rules! unindexed_aircraft_variable {
 
 /// A custom named variable that can be interacted with in the Gauge API
 pub trait NamedVariable {
-    /// The type of the variable (must be convertable to `f64`)
-    type Value: Into<f64>;
+    /// The type of the variable
+    type Value: Into<f64> + From<f64>;
 
     /// Obtains the raw FFI identifier for this named variable
     fn as_raw_named_variable() -> ffi::RawNamedVariable;
@@ -126,9 +126,21 @@ macro_rules! named_variable {
             const VARIABLE_NAME: &'static str = concat!($name, "\0");
 
             /// Sets the variable as a raw value
+            ///
+            /// The value must be convertible into a raw 64-bit float
             #[inline]
-            fn set_raw(value: <Self as $crate::NamedVariable>::Value) {
+            fn set_raw(value: <Self as $crate::NamedVariable>::Value)
+            {
                 $crate::ffi::RawNamedVariable::set(<Self as $crate::NamedVariable>::as_raw_named_variable(), value.into())
+            }
+
+            /// Reads the variable as a raw value
+            ///
+            /// The value must be convertible from a raw 64-bit float
+            #[inline]
+            fn read_raw() -> <Self as $crate::NamedVariable>::Value
+            {
+                $crate::ffi::RawNamedVariable::get(<Self as $crate::NamedVariable>::as_raw_named_variable()).into()
             }
         }
 
