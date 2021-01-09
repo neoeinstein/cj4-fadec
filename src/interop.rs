@@ -4,7 +4,12 @@ use gauge_sys::{
 use num_derive::{FromPrimitive, ToPrimitive};
 use num_traits::{FromPrimitive, ToPrimitive};
 use uom::si::{
-    f64::*, force::poundal, length::foot, mass_density::slug_per_cubic_foot, ratio::ratio,
+    f64::*,
+    force::poundal,
+    length::foot,
+    mass_density::slug_per_cubic_foot,
+    ratio::ratio,
+    velocity::{foot_per_second, knot},
 };
 use wt_cj4::{
     control_params::{ThrottleMode, ThrottlePercent},
@@ -16,12 +21,17 @@ gauge_unit!(Pounds: "Pounds"; "Weight measured in pounds or Force measured in po
 gauge_unit!(Feet: "Feet"; "Distance measured in feet");
 gauge_unit!(Number: "Number"; "A dimensionless value");
 gauge_unit!(Mach: "Mach"; "Velocity measures as a ratio of the speed of sound");
+gauge_unit!(Knots: "Knots"; "Nautical miles per hour");
+gauge_unit!(FeetPerSecond: "Feet per second"; "Feet per second");
 gauge_unit!(SluggerSlugs: "Slug per cubic feet"; "Pressure measured in slugs per cubic foot");
 gauge_unit!(Bool: "Bool"; "A boolean value which is either off (0) or on (1)");
 
 indexed_aircraft_variable!(Throttle(Percent): "GENERAL ENG THROTTLE LEVER POSITION"; "Engine throttle lever position");
 indexed_aircraft_variable!(Thrust(Pounds): "TURB ENG JET THRUST"; "Turbine engine jet thrust");
 unindexed_aircraft_variable!(AirspeedMach(Mach): "AIRSPEED MACH"; "Airspeed as Mach number");
+unindexed_aircraft_variable!(AirspeedIndicated(Knots): "AIRSPEED INDICATED"; "Airspeed as indicated by pitot pressure");
+unindexed_aircraft_variable!(AirspeedTrue(Knots): "AIRSPEED TRUE"; "True airspeed");
+unindexed_aircraft_variable!(VerticalSpeed(FeetPerSecond): "VERTICAL SPEED"; "Vertical speed");
 unindexed_aircraft_variable!(PressureAltitude(Feet): "PRESSURE ALTITUDE"; "Pressure altitude");
 unindexed_aircraft_variable!(GeometricAltitude(Feet): "PLANE ALTITUDE"; "Plane altitude");
 unindexed_aircraft_variable!(AmbientDensity(SluggerSlugs): "AMBIENT DENSITY"; "Ambient air density");
@@ -65,6 +75,24 @@ impl Throttle {
 impl AirspeedMach {
     pub fn read() -> Ratio {
         Ratio::new::<ratio>(Self::read_raw())
+    }
+}
+
+impl AirspeedIndicated {
+    pub fn read() -> Velocity {
+        Velocity::new::<knot>(Self::read_raw())
+    }
+}
+
+impl AirspeedTrue {
+    pub fn read() -> Velocity {
+        Velocity::new::<knot>(Self::read_raw())
+    }
+}
+
+impl VerticalSpeed {
+    pub fn read() -> Velocity {
+        Velocity::new::<foot_per_second>(Self::read_raw())
     }
 }
 

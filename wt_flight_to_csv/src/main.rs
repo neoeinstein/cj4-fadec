@@ -19,6 +19,9 @@ use wt_cj4::engines::EngineNumber;
 struct FlatSnapshot {
     simulation_time: f64,
     delta_t: f64,
+    airspeed_indicated: f64,
+    airspeed_true: f64,
+    vertical_speed: f64,
     mach_number: f64,
     ambient_density: f64,
     geometric_altitude: f64,
@@ -31,6 +34,10 @@ struct FlatSnapshot {
     engine1_pid_config: String,
     engine1_pid_last_error: f64,
     engine1_pid_retained_error: f64,
+    engine1_pid_proportional: f64,
+    engine1_pid_integral: f64,
+    engine1_pid_derivative: f64,
+    engine1_pid_output: f64,
     engine1_fadec_enabled: bool,
     engine2_thrust: f64,
     engine2_fadec_mode: ThrottleMode,
@@ -40,6 +47,10 @@ struct FlatSnapshot {
     engine2_pid_config: String,
     engine2_pid_last_error: f64,
     engine2_pid_retained_error: f64,
+    engine2_pid_proportional: f64,
+    engine2_pid_integral: f64,
+    engine2_pid_derivative: f64,
+    engine2_pid_output: f64,
     engine2_fadec_enabled: bool,
 }
 
@@ -141,6 +152,21 @@ fn process_record(
         .serialize(&FlatSnapshot {
             simulation_time: x.sim_time.get::<uom::si::time::second>(),
             delta_t: x.delta_t.get::<uom::si::time::second>(),
+            airspeed_indicated: x
+                .environment
+                .instruments
+                .airspeed_indicated
+                .get::<uom::si::velocity::knot>(),
+            airspeed_true: x
+                .environment
+                .instruments
+                .airspeed_true
+                .get::<uom::si::velocity::knot>(),
+            vertical_speed: x
+                .environment
+                .instruments
+                .vertical_speed
+                .get::<uom::si::velocity::foot_per_minute>(),
             mach_number: x
                 .environment
                 .instruments
@@ -183,6 +209,26 @@ fn process_record(
                 .retained_error
                 / uom::si::f64::Time::new::<uom::si::time::second>(1.))
             .get::<uom::si::force::poundal>(),
+            engine1_pid_proportional: x.aircraft.engines[EngineNumber::Engine1]
+                .fadec
+                .last_pid_outputs()
+                .proportional
+                .get::<uom::si::ratio::ratio>(),
+            engine1_pid_integral: x.aircraft.engines[EngineNumber::Engine1]
+                .fadec
+                .last_pid_outputs()
+                .integral
+                .get::<uom::si::ratio::ratio>(),
+            engine1_pid_derivative: x.aircraft.engines[EngineNumber::Engine1]
+                .fadec
+                .last_pid_outputs()
+                .derivative
+                .get::<uom::si::ratio::ratio>(),
+            engine1_pid_output: x.aircraft.engines[EngineNumber::Engine1]
+                .fadec
+                .last_pid_outputs()
+                .output()
+                .get::<uom::si::ratio::ratio>(),
             engine1_fadec_enabled: x.aircraft.engines[EngineNumber::Engine1].fadec.is_enabled(),
             engine2_thrust: x.environment.engines[EngineNumber::Engine2]
                 .thrust
@@ -206,6 +252,26 @@ fn process_record(
                 .retained_error
                 / uom::si::f64::Time::new::<uom::si::time::second>(1.))
             .get::<uom::si::force::poundal>(),
+            engine2_pid_proportional: x.aircraft.engines[EngineNumber::Engine2]
+                .fadec
+                .last_pid_outputs()
+                .proportional
+                .get::<uom::si::ratio::ratio>(),
+            engine2_pid_integral: x.aircraft.engines[EngineNumber::Engine2]
+                .fadec
+                .last_pid_outputs()
+                .integral
+                .get::<uom::si::ratio::ratio>(),
+            engine2_pid_derivative: x.aircraft.engines[EngineNumber::Engine2]
+                .fadec
+                .last_pid_outputs()
+                .derivative
+                .get::<uom::si::ratio::ratio>(),
+            engine2_pid_output: x.aircraft.engines[EngineNumber::Engine2]
+                .fadec
+                .last_pid_outputs()
+                .output()
+                .get::<uom::si::ratio::ratio>(),
             engine2_fadec_enabled: x.aircraft.engines[EngineNumber::Engine2].fadec.is_enabled(),
         })
         .unwrap();

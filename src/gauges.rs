@@ -54,6 +54,9 @@ impl FdGauge {
             ambient_density: interop::AmbientDensity::read(),
             geometric_altitude: interop::GeometricAltitude::read(),
             pressure_altitude: interop::PressureAltitude::read(),
+            airspeed_indicated: interop::AirspeedIndicated::read(),
+            airspeed_true: interop::AirspeedTrue::read(),
+            vertical_speed: interop::VerticalSpeed::read(),
         };
 
         let engines = EngineData::new_from(|e| EngineReadings {

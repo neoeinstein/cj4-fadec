@@ -13,3 +13,6 @@ serde = { version = "1", features = ["derive"], optional = true }
 [dev-dependencies]
 csv = "*"
 serde = { version = "1", features = ["derive"] }
+
+[features]
+non-zeroing = []

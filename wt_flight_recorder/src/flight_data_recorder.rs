@@ -1,7 +1,7 @@
 use flate2::write::GzEncoder;
 use std::{fmt, fs, marker::PhantomData};
 
-const MAX_EVENTS_PER_FILE: u32 = 1000; //20 * 60 * 15;
+const MAX_EVENTS_PER_FILE: u32 = 20 * 60 * 30;
 
 /// A flight data recorder for aircraft data
 ///

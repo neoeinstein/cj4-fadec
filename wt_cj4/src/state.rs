@@ -20,6 +20,15 @@ pub struct Instruments {
 
     /// Pressure altitude
     pub pressure_altitude: PressureAltitude,
+
+    /// Indicated airspeed
+    pub airspeed_indicated: uom::si::f64::Velocity,
+
+    /// True airspeed
+    pub airspeed_true: uom::si::f64::Velocity,
+
+    /// Vertical speed
+    pub vertical_speed: uom::si::f64::Velocity,
 }
 
 /// Engine-specific readings

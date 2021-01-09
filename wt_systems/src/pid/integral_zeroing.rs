@@ -389,6 +389,7 @@ where
 
         // Integral
         // If the new error has changed signs, remove momentum
+        #[cfg(not(feature = "non-zeroing"))]
         let retained_error: RetainedError<Time, In> = if (error > zero())
             != (self.prior_error >= zero())
         {
@@ -396,6 +397,9 @@ where
         } else {
             self.retained_error + (delta_t * error) + (delta_t * (error - self.prior_error) / 2.)
         };
+        #[cfg(feature = "non-zeroing")]
+        let retained_error: RetainedError<Time, In> =
+            self.retained_error + (delta_t * error) + (delta_t * (error - self.prior_error) / 2.);
         let integral: Ratio = retained_error * config.gain_integral;
 
         // Derivative

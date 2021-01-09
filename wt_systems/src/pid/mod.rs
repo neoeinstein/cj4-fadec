@@ -44,6 +44,15 @@ pub struct PidComponents {
     pub derivative: Ratio,
 }
 
+impl PidComponents {
+    /// The combined output of the PID controller
+    ///
+    /// Calculated as the summation of the proportional, integral, and derivative terms
+    pub fn output(self) -> Ratio {
+        self.proportional + self.integral + self.derivative
+    }
+}
+
 /// Configuration for a PID controller
 pub trait Configuration {
     /// Constrains the output command value

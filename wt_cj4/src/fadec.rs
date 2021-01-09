@@ -16,7 +16,7 @@ use uom::si::{
 };
 use wt_systems::pid::{
     integral_zeroing::{PidConfiguration, PidController},
-    Pid,
+    Pid, PidComponents,
 };
 
 /// The CJ4 FADEC controller
@@ -25,6 +25,7 @@ use wt_systems::pid::{
 pub struct FadecController {
     climb_pid_config: PidConfiguration<Force>,
     pid_state: PidController<Force>,
+    last_pid_outputs: PidComponents,
     throttle_selected: Ratio,
     enabled: bool,
 }
@@ -34,6 +35,7 @@ impl Default for FadecController {
         Self {
             climb_pid_config: ClimbFadecPidConfiguration::default(),
             pid_state: PidController::default(),
+            last_pid_outputs: PidComponents::default(),
             throttle_selected: Ratio::new::<ratio>(0.),
             enabled: true,
         }
@@ -49,6 +51,11 @@ impl FadecController {
     /// Provides read access to the current PID state
     pub fn pid_state(&self) -> &PidController<Force> {
         &self.pid_state
+    }
+
+    /// Provides read access to the current PID state
+    pub fn last_pid_outputs(&self) -> PidComponents {
+        self.last_pid_outputs
     }
 
     /// The currently configured throttle value
@@ -121,14 +128,16 @@ impl FadecController {
                     low_altitude_thrust_target
                 };
 
-                let output = self.pid_state.step(
-                    thrust_target,
+                let error = thrust_target - gross_thrust;
+
+                self.last_pid_outputs = self.pid_state.step_with_components(
+                    error,
                     &self.climb_pid_config,
                     gross_thrust,
                     delta_t,
                 );
 
-                self.throttle_selected += output;
+                self.throttle_selected += self.last_pid_outputs.output();
                 // println!("Thrust target: {:.4} (error: {:+.4}); commanding change of {:+.4} to {:.4} of maximum", thrust_target.into_format_args(poundal, Abbreviation), self.pid_state.prior_error().into_format_args(poundal, Abbreviation), output.into_format_args(ratio, Abbreviation), self.throttle_selected.into_format_args(ratio, Abbreviation));
 
                 (
