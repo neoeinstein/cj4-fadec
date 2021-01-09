@@ -127,7 +127,7 @@
 <span class="kw">use</span> <span class="ident">flate2</span>::<span class="ident">write</span>::<span class="ident">GzEncoder</span>;
 <span class="kw">use</span> <span class="ident">std</span>::{<span class="ident">fmt</span>, <span class="ident">fs</span>, <span class="ident">marker</span>::<span class="ident">PhantomData</span>};
 
-<span class="kw">const</span> <span class="ident">MAX_EVENTS_PER_FILE</span>: <span class="ident">u32</span> <span class="op">=</span> <span class="number">1000</span>; <span class="comment">//20 * 60 * 15;</span>
+<span class="kw">const</span> <span class="ident">MAX_EVENTS_PER_FILE</span>: <span class="ident">u32</span> <span class="op">=</span> <span class="number">20</span> <span class="op">*</span> <span class="number">60</span> <span class="op">*</span> <span class="number">30</span>;
 
 <span class="doccomment">/// A flight data recorder for aircraft data</span>
 <span class="doccomment">///</span>

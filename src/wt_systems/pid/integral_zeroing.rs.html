@@ -539,6 +539,10 @@
 <span id="536">536</span>
 <span id="537">537</span>
 <span id="538">538</span>
+<span id="539">539</span>
+<span id="540">540</span>
+<span id="541">541</span>
+<span id="542">542</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="doccomment">//! A PID implementation that removes the integral component on error sign changes</span>
 
@@ -931,6 +935,7 @@
 
         <span class="comment">// Integral</span>
         <span class="comment">// If the new error has changed signs, remove momentum</span>
+        <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">not</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;non-zeroing&quot;</span>))]</span>
         <span class="kw">let</span> <span class="ident">retained_error</span>: <span class="ident">RetainedError</span><span class="op">&lt;</span><span class="ident">Time</span>, <span class="ident">In</span><span class="op">&gt;</span> <span class="op">=</span> <span class="kw">if</span> (<span class="ident">error</span> <span class="op">&gt;</span> <span class="ident">zero</span>())
             <span class="op">!</span><span class="op">=</span> (<span class="self">self</span>.<span class="ident">prior_error</span> <span class="op">&gt;</span><span class="op">=</span> <span class="ident">zero</span>())
         {
@@ -938,6 +943,9 @@
         } <span class="kw">else</span> {
             <span class="self">self</span>.<span class="ident">retained_error</span> <span class="op">+</span> (<span class="ident">delta_t</span> <span class="op">*</span> <span class="ident">error</span>) <span class="op">+</span> (<span class="ident">delta_t</span> <span class="op">*</span> (<span class="ident">error</span> <span class="op">-</span> <span class="self">self</span>.<span class="ident">prior_error</span>) <span class="op">/</span> <span class="number">2.</span>)
         };
+        <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;non-zeroing&quot;</span>)]</span>
+        <span class="kw">let</span> <span class="ident">retained_error</span>: <span class="ident">RetainedError</span><span class="op">&lt;</span><span class="ident">Time</span>, <span class="ident">In</span><span class="op">&gt;</span> <span class="op">=</span>
+            <span class="self">self</span>.<span class="ident">retained_error</span> <span class="op">+</span> (<span class="ident">delta_t</span> <span class="op">*</span> <span class="ident">error</span>) <span class="op">+</span> (<span class="ident">delta_t</span> <span class="op">*</span> (<span class="ident">error</span> <span class="op">-</span> <span class="self">self</span>.<span class="ident">prior_error</span>) <span class="op">/</span> <span class="number">2.</span>);
         <span class="kw">let</span> <span class="ident">integral</span>: <span class="ident">Ratio</span> <span class="op">=</span> <span class="ident">retained_error</span> <span class="op">*</span> <span class="ident">config</span>.<span class="ident">gain_integral</span>;
 
         <span class="comment">// Derivative</span>

@@ -305,6 +305,15 @@
 <span id="302">302</span>
 <span id="303">303</span>
 <span id="304">304</span>
+<span id="305">305</span>
+<span id="306">306</span>
+<span id="307">307</span>
+<span id="308">308</span>
+<span id="309">309</span>
+<span id="310">310</span>
+<span id="311">311</span>
+<span id="312">312</span>
+<span id="313">313</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="doccomment">//! The CJ4 FADEC controller module</span>
 
@@ -324,7 +333,7 @@
 };
 <span class="kw">use</span> <span class="ident">wt_systems</span>::<span class="ident">pid</span>::{
     <span class="ident">integral_zeroing</span>::{<span class="ident">PidConfiguration</span>, <span class="ident">PidController</span>},
-    <span class="ident">Pid</span>,
+    <span class="ident">Pid</span>, <span class="ident">PidComponents</span>,
 };
 
 <span class="doccomment">/// The CJ4 FADEC controller</span>
@@ -333,6 +342,7 @@
 <span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">FadecController</span> {
     <span class="ident">climb_pid_config</span>: <span class="ident">PidConfiguration</span><span class="op">&lt;</span><span class="ident">Force</span><span class="op">&gt;</span>,
     <span class="ident">pid_state</span>: <span class="ident">PidController</span><span class="op">&lt;</span><span class="ident">Force</span><span class="op">&gt;</span>,
+    <span class="ident">last_pid_outputs</span>: <span class="ident">PidComponents</span>,
     <span class="ident">throttle_selected</span>: <span class="ident">Ratio</span>,
     <span class="ident">enabled</span>: <span class="ident">bool</span>,
 }
@@ -342,6 +352,7 @@
         <span class="self">Self</span> {
             <span class="ident">climb_pid_config</span>: <span class="ident">ClimbFadecPidConfiguration</span>::<span class="ident">default</span>(),
             <span class="ident">pid_state</span>: <span class="ident">PidController</span>::<span class="ident">default</span>(),
+            <span class="ident">last_pid_outputs</span>: <span class="ident">PidComponents</span>::<span class="ident">default</span>(),
             <span class="ident">throttle_selected</span>: <span class="ident">Ratio</span>::<span class="ident">new</span>::<span class="op">&lt;</span><span class="ident">ratio</span><span class="op">&gt;</span>(<span class="number">0.</span>),
             <span class="ident">enabled</span>: <span class="bool-val">true</span>,
         }
@@ -357,6 +368,11 @@
     <span class="doccomment">/// Provides read access to the current PID state</span>
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">pid_state</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="kw-2">&amp;</span><span class="ident">PidController</span><span class="op">&lt;</span><span class="ident">Force</span><span class="op">&gt;</span> {
         <span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">pid_state</span>
+    }
+
+    <span class="doccomment">/// Provides read access to the current PID state</span>
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">last_pid_outputs</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">PidComponents</span> {
+        <span class="self">self</span>.<span class="ident">last_pid_outputs</span>
     }
 
     <span class="doccomment">/// The currently configured throttle value</span>
@@ -429,14 +445,16 @@
                     <span class="ident">low_altitude_thrust_target</span>
                 };
 
-                <span class="kw">let</span> <span class="ident">output</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">pid_state</span>.<span class="ident">step</span>(
-                    <span class="ident">thrust_target</span>,
+                <span class="kw">let</span> <span class="ident">error</span> <span class="op">=</span> <span class="ident">thrust_target</span> <span class="op">-</span> <span class="ident">gross_thrust</span>;
+
+                <span class="self">self</span>.<span class="ident">last_pid_outputs</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">pid_state</span>.<span class="ident">step_with_components</span>(
+                    <span class="ident">error</span>,
                     <span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">climb_pid_config</span>,
                     <span class="ident">gross_thrust</span>,
                     <span class="ident">delta_t</span>,
                 );
 
-                <span class="self">self</span>.<span class="ident">throttle_selected</span> <span class="op">+</span><span class="op">=</span> <span class="ident">output</span>;
+                <span class="self">self</span>.<span class="ident">throttle_selected</span> <span class="op">+</span><span class="op">=</span> <span class="self">self</span>.<span class="ident">last_pid_outputs</span>.<span class="ident">output</span>();
                 <span class="comment">// println!(&quot;Thrust target: {:.4} (error: {:+.4}); commanding change of {:+.4} to {:.4} of maximum&quot;, thrust_target.into_format_args(poundal, Abbreviation), self.pid_state.prior_error().into_format_args(poundal, Abbreviation), output.into_format_args(ratio, Abbreviation), self.throttle_selected.into_format_args(ratio, Abbreviation));</span>
 
                 (
